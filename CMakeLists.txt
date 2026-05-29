@@ -57,6 +57,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
 # Find and include SDL2 library
+set(SDL2_DIR ${PROJECT_SOURCE_DIR}/SDL2-2.32.6/cmake)
 find_package(SDL2 REQUIRED)
 
 # Add compile definitions based on the selected options
@@ -71,6 +72,18 @@ target_include_directories(lvgl PUBLIC ${PROJECT_SOURCE_DIR} ${SDL2_INCLUDE_DIRS
 
 set(MAIN_SOURCES src/mouse_cursor_icon.c src/hal/hal.c)
 set(MAIN_LIBS lvgl lvgl::examples lvgl::demos lvgl::thorvg ${SDL2_LIBRARIES})
+
+# --- UI 模块配置 ---
+# 定义 UI 根目录
+set(UI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/ui)
+
+# 自动扫描所有页面和素材
+file(GLOB_RECURSE UI_SOURCES
+    "${UI_DIR}/*.c"
+)
+
+# 将 UI 文件加入总源文件列表
+list(APPEND MAIN_SOURCES ${UI_SOURCES})
 
 # Create the main executable, depending on the FreeRTOS option
 if(USE_FREERTOS)
@@ -143,6 +156,8 @@ endif()
 
 add_executable(main ${MAIN_SOURCES})
 target_compile_definitions(main PRIVATE LV_CONF_INCLUDE_SIMPLE)
+# UTF-8 源文件编码支持
+target_compile_options(main PRIVATE -finput-charset=UTF-8 -fexec-charset=UTF-8)
 target_link_libraries(main ${MAIN_LIBS})
 
 # On Windows, GUI applications do not show a console by default,

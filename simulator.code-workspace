@@ -20,6 +20,7 @@
 	},
 	// settings.json section
 	"settings": {
+		"cmake.path": "C:\\Program Files\\CMake\\bin\\cmake",
 		"files.trimTrailingWhitespace": true,
 		"files.insertFinalNewline": true,
 		"files.trimFinalNewlines": true,

@@ -1,6 +1,7 @@
 # Ignore build folder
 build/
 bin/
+SDL2-2.32.6/
 
 # Ignore all dot folders, with below exceptions
 .*/
