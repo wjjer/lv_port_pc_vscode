@@ -69,6 +69,10 @@ void render_alarm_view(void);
 void render_stopwatch_view(void);
 static void add_alarm_from_create_page(void);
 static void render_lap_list(void);
+static void alarm_delete_at(int index);
+
+// 长按删除：记录当前待删除的闹钟下标
+static int pending_delete_index = -1;
 
 // =========================
 // 秒表计时器
@@ -175,7 +179,7 @@ static void render_lap_list(void)
         lv_obj_set_style_border_width(lap_item, 0, 0);
         lv_obj_set_style_pad_all(lap_item, 0, 0);
         lv_obj_set_style_pad_hor(lap_item, 15, 0);
-        lv_obj_clear_flag(lap_item, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_remove_flag(lap_item, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t *lap_num = lv_label_create(lap_item);
         lv_label_set_text_fmt(lap_num, "Lap %d", lap_count - i);
@@ -196,6 +200,94 @@ static void render_lap_list(void)
 }
 
 // =========================
+// 删除指定闹钟（数组前移保持紧凑）
+// =========================
+static void alarm_delete_at(int index)
+{
+    if (index < 0 || index >= alarm_count)
+        return;
+
+    for (int i = index; i < alarm_count - 1; i++)
+        alarms[i] = alarms[i + 1];
+
+    alarm_count--;
+    memset(&alarms[alarm_count], 0, sizeof(alarm_t));
+
+    render_alarm_view();
+}
+
+// =========================
+// 删除确认弹窗回调
+// =========================
+static void alarm_del_confirm_cb(lv_event_t *e)
+{
+    lv_obj_t *btn = lv_event_get_target(e);
+    // footer button 的祖先即 msgbox 根对象
+    lv_obj_t *mbox = lv_obj_get_parent(lv_obj_get_parent(btn));
+
+    alarm_delete_at(pending_delete_index);
+    pending_delete_index = -1;
+
+    lv_msgbox_close(mbox);
+}
+
+static void alarm_del_cancel_cb(lv_event_t *e)
+{
+    lv_obj_t *btn = lv_event_get_target(e);
+    lv_obj_t *mbox = lv_obj_get_parent(lv_obj_get_parent(btn));
+
+    pending_delete_index = -1;
+    lv_msgbox_close(mbox);
+}
+
+// =========================
+// 闹钟项长按 → 弹出删除确认
+// =========================
+static void alarm_item_long_press_cb(lv_event_t *e)
+{
+    int index = (int)(uintptr_t)lv_event_get_user_data(e);
+    if (index < 0 || index >= alarm_count)
+        return;
+
+    pending_delete_index = index;
+
+    // 9.5 标准 msgbox：parent 传 NULL 自动在 lv_layer_top() 创建模态遮罩
+    lv_obj_t *mbox = lv_msgbox_create(NULL);
+    lv_obj_set_style_text_font(mbox, &font, 0);
+    lv_obj_set_style_radius(mbox, UI_RADIUS, 0);
+
+    lv_msgbox_add_title(mbox, "删除闹钟");
+    lv_msgbox_add_text_fmt(mbox, "确定删除 %02d:%02d%s%s ?",
+                           alarms[index].hour,
+                           alarms[index].minute,
+                           alarms[index].label[0] ? " " : "",
+                           alarms[index].label);
+
+    lv_obj_t *btn_cancel = lv_msgbox_add_footer_button(mbox, "取消");
+    lv_obj_set_style_text_font(btn_cancel, &font, 0);
+    lv_obj_add_event_cb(btn_cancel, alarm_del_cancel_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *btn_del = lv_msgbox_add_footer_button(mbox, "删除");
+    lv_obj_set_style_text_font(btn_del, &font, 0);
+    lv_obj_set_style_bg_color(btn_del, COLOR_RED, 0);
+    lv_obj_set_style_text_color(btn_del, lv_color_white(), 0);
+    lv_obj_add_event_cb(btn_del, alarm_del_confirm_cb, LV_EVENT_CLICKED, NULL);
+}
+
+// =========================
+// 闹钟开关切换 → 同步 active 状态
+// =========================
+static void alarm_switch_cb(lv_event_t *e)
+{
+    lv_obj_t *sw = lv_event_get_target(e);
+    int index = (int)(uintptr_t)lv_event_get_user_data(e);
+    if (index < 0 || index >= alarm_count)
+        return;
+
+    alarms[index].active = lv_obj_has_state(sw, LV_STATE_CHECKED);
+}
+
+// =========================
 // 极简闹钟 Item
 // =========================
 static void add_alarm_item(lv_obj_t *parent,
@@ -213,7 +305,11 @@ static void add_alarm_item(lv_obj_t *parent,
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
 
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+
+    // 长按删除（item 默认带 CLICKABLE，可直接收长按事件）
+    lv_obj_add_event_cb(obj, alarm_item_long_press_cb, LV_EVENT_LONG_PRESSED,
+                        (void *)(uintptr_t)index);
 
     // 时间
     lv_obj_t *time_l = lv_label_create(obj);
@@ -274,6 +370,10 @@ static void add_alarm_item(lv_obj_t *parent,
 
     if (alarm->active)
         lv_obj_add_state(sw, LV_STATE_CHECKED);
+
+    // 开关切换回调：把开关状态写回数据
+    lv_obj_add_event_cb(sw, alarm_switch_cb, LV_EVENT_VALUE_CHANGED,
+                        (void *)(uintptr_t)index);
 
     // 分割线
     lv_obj_t *line = lv_obj_create(obj);
@@ -371,7 +471,7 @@ void render_stopwatch_view(void)
     lv_obj_set_style_bg_opa(time_container, 0, 0);
     lv_obj_set_style_border_width(time_container, 0, 0);
     lv_obj_set_style_pad_all(time_container, 0, 0);
-    lv_obj_clear_flag(time_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(time_container, LV_OBJ_FLAG_SCROLLABLE);
 
     int time_width = 180;
     int time_start_x = (UI_SCREEN_WIDTH - time_width) / 2;
@@ -412,7 +512,7 @@ void render_stopwatch_view(void)
     lv_obj_set_style_bg_opa(btn_container, 0, 0);
     lv_obj_set_style_border_width(btn_container, 0, 0);
     lv_obj_set_style_pad_all(btn_container, 0, 0);
-    lv_obj_clear_flag(btn_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(btn_container, LV_OBJ_FLAG_SCROLLABLE);
 
     int btn_width = 65;
     int btn_gap = 10;
@@ -579,7 +679,7 @@ void ui_clock_show(void)
 
     lv_obj_set_scrollbar_mode(clock_page, LV_SCROLLBAR_MODE_OFF);
 
-    lv_obj_clear_flag(clock_page,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(clock_page,LV_OBJ_FLAG_SCROLLABLE);
 
     if (status_bar)
         lv_obj_move_foreground(status_bar);
@@ -606,32 +706,32 @@ void ui_clock_show(void)
     lv_obj_set_scrollbar_mode(content_area, LV_SCROLLBAR_MODE_OFF);
 
     // =========================
-    // 底部导航按钮
+    // 底部导航按钮（Flex 水平居中，底部对齐）
     // =========================
     int btn_width = 80;
     int btn_height = 32;
     int btn_gap = 5;
-    int total_width = btn_width * 2 + btn_gap;
-    int footer_width = total_width + 16;
-    int footer_height = 40;
 
     lv_obj_t * footer = lv_obj_create(clock_page);
-    lv_obj_set_size(footer, footer_width, footer_height);
+    // 宽度交给内容自适应，由 Flex 把两个按钮居中排布
+    lv_obj_set_size(footer, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, -5);
     lv_obj_set_style_bg_opa(footer, 0, 0);
     lv_obj_set_style_border_width(footer, 0, 0);
+    lv_obj_set_style_pad_all(footer, 0, 0);
     lv_obj_set_scrollbar_mode(footer, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_clear_flag(footer, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(footer, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Flex 行布局：主轴/交叉轴居中，按钮间距固定
+    lv_obj_set_flex_flow(footer, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(footer, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(footer, btn_gap, 0);
 
     const char * btns[] = {"闹钟","秒表"};
-
-    int start_x = (footer_width - total_width) / 2;
-    int start_y = (footer_height - btn_height) / 2;
 
     for(int i = 0; i < 2; i++) {
         lv_obj_t * b = lv_button_create(footer);
         lv_obj_set_size(b, btn_width, btn_height);
-        lv_obj_set_pos(b, start_x + i * (btn_width + btn_gap), start_y);
         lv_obj_set_style_radius(b, 10, 0);
         lv_obj_set_style_bg_color(b, i == 0 ? lv_color_white() : COLOR_SURFACE, 0);
         lv_obj_set_style_shadow_width(b, 0, 0);
