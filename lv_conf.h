@@ -1228,7 +1228,7 @@
 
 /** 1: Enable Pinyin input method
  *  - Requires: lv_keyboard */
-#define LV_USE_IME_PINYIN 0
+#define LV_USE_IME_PINYIN 1
 #if LV_USE_IME_PINYIN
     /** 1: Use default thesaurus.
      *  @note  If you do not use the default thesaurus, be sure to use `lv_ime_pinyin` after setting the thesaurus. */

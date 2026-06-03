@@ -43,7 +43,7 @@ static void create_quick_panel(void) {
     lv_obj_set_size(quick_panel, UI_SCREEN_WIDTH, 180);
     lv_obj_set_pos(quick_panel, 0, -180);
     lv_obj_set_style_bg_color(quick_panel, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_bg_opa(quick_panel, 102, 0);  // 40%透明度
+    lv_obj_set_style_bg_opa(quick_panel, LV_OPA_40, 0);  // 40%透明度
     lv_obj_set_scrollbar_mode(quick_panel, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_blur_backdrop(quick_panel, true, 0);  // 启用背景模糊
     lv_obj_set_style_blur_radius(quick_panel, 12, 0);      // 模糊半径
@@ -164,7 +164,7 @@ void ui_statusbar_create(void) {
     status_bar = lv_obj_create(lv_layer_top());
     lv_obj_set_size(status_bar, UI_SCREEN_WIDTH, UI_STATUSBAR_HEIGHT);
     lv_obj_set_style_bg_color(status_bar, lv_color_hex(0x333333), 0);
-    lv_obj_set_style_bg_opa(status_bar, 200, 0);
+    lv_obj_set_style_bg_opa(status_bar, LV_OPA_30, 0);
     lv_obj_set_style_border_width(status_bar, 0, 0);
     lv_obj_set_style_radius(status_bar, 0, 0);  // 无圆角
     lv_obj_set_scrollbar_mode(status_bar, LV_SCROLLBAR_MODE_OFF);
@@ -190,23 +190,23 @@ void ui_statusbar_create(void) {
     lv_obj_align(bar_right_icons, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_set_flex_flow(bar_right_icons, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(bar_right_icons, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(bar_right_icons, 4, 0);
+    lv_obj_set_style_pad_gap(bar_right_icons, 6, 0);
 
     lv_obj_t * icon_alarm = lv_label_create(bar_right_icons);
     lv_label_set_text(icon_alarm, LV_SYMBOL_BELL);
-    lv_obj_set_style_text_font(icon_alarm, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(icon_alarm, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(icon_alarm, lv_color_white(), 0);
 
     lv_obj_t * icon_bt = lv_label_create(bar_right_icons);
     lv_label_set_text(icon_bt, LV_SYMBOL_BLUETOOTH);
-    lv_obj_set_style_text_font(icon_bt, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(icon_bt, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(icon_bt, lv_color_white(), 0);
 
     lv_obj_t * icon_4g = lv_label_create(bar_right_icons);
     lv_label_set_text(icon_4g, "4G");
-    lv_obj_set_style_text_font(icon_4g, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(icon_4g, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(icon_4g, lv_color_white(), 0);
-    lv_obj_set_style_margin_right(icon_4g, 2, 0);
+    lv_obj_set_style_margin_right(icon_4g, 3, 0);
 
     lv_obj_t * icon_wifi = lv_label_create(bar_right_icons);
     lv_label_set_text(icon_wifi, LV_SYMBOL_WIFI);
@@ -220,9 +220,8 @@ void ui_statusbar_create(void) {
 
     lv_obj_t * bat_percent = lv_label_create(bar_right_icons);
     lv_label_set_text(bat_percent, "85%");
-    lv_obj_set_style_text_font(bat_percent, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(bat_percent, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(bat_percent, lv_color_white(), 0);
-
     update_status_bar_color(lv_color_hex(0x1a3a6d));
 }
 
