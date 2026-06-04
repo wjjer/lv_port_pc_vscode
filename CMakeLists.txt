@@ -78,7 +78,7 @@ set(MAIN_LIBS lvgl lvgl::examples lvgl::demos lvgl::thorvg ${SDL2_LIBRARIES})
 set(UI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/ui)
 
 # 自动扫描所有页面和素材
-file(GLOB_RECURSE UI_SOURCES
+file(GLOB_RECURSE UI_SOURCES CONFIGURE_DEPENDS
     "${UI_DIR}/*.c"
 )
 
@@ -159,6 +159,44 @@ target_compile_definitions(main PRIVATE LV_CONF_INCLUDE_SIMPLE)
 # UTF-8 源文件编码支持
 target_compile_options(main PRIVATE -finput-charset=UTF-8 -fexec-charset=UTF-8)
 target_link_libraries(main ${MAIN_LIBS})
+
+# --- Pomodoro harness tests ---
+set(POMODORO_DIR ${PROJECT_SOURCE_DIR}/src/ui/pages/app/pomodoro)
+set(POMODORO_TEST_COMMON_LIBS lvgl lvgl::thorvg)
+if(NOT MSVC)
+    list(APPEND POMODORO_TEST_COMMON_LIBS m pthread)
+endif()
+
+add_executable(test_pomodoro_logic
+    tests/test_pomodoro_logic.c
+    ${POMODORO_DIR}/ui_pomodoro_timer.c
+)
+target_compile_definitions(test_pomodoro_logic PRIVATE LV_CONF_INCLUDE_SIMPLE)
+target_compile_options(test_pomodoro_logic PRIVATE -finput-charset=UTF-8 -fexec-charset=UTF-8)
+target_link_libraries(test_pomodoro_logic ${POMODORO_TEST_COMMON_LIBS})
+
+add_executable(test_pomodoro_storage
+    tests/test_pomodoro_storage.c
+    ${POMODORO_DIR}/ui_pomodoro_storage.c
+)
+target_compile_definitions(test_pomodoro_storage PRIVATE LV_CONF_INCLUDE_SIMPLE)
+target_compile_options(test_pomodoro_storage PRIVATE -finput-charset=UTF-8 -fexec-charset=UTF-8)
+target_link_libraries(test_pomodoro_storage ${POMODORO_TEST_COMMON_LIBS})
+
+add_executable(test_pomodoro_view
+    tests/test_pomodoro_view.c
+    ${POMODORO_DIR}/ui_pomodoro.c
+    ${POMODORO_DIR}/ui_pomodoro_storage.c
+    ${POMODORO_DIR}/ui_pomodoro_timer.c
+    ${POMODORO_DIR}/ui_pomodoro_view.c
+    src/ui/components/ui_titlebar.c
+    src/ui/components/ui_statusbar.c
+    src/ui/assets/font.c
+)
+target_compile_definitions(test_pomodoro_view PRIVATE LV_CONF_INCLUDE_SIMPLE UI_POMODORO_TEST)
+target_compile_options(test_pomodoro_view PRIVATE -finput-charset=UTF-8 -fexec-charset=UTF-8)
+target_link_libraries(test_pomodoro_view ${POMODORO_TEST_COMMON_LIBS})
+
 
 # On Windows, GUI applications do not show a console by default,
 # which hides log output. This ensures a console is available for logging.

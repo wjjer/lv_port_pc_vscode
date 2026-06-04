@@ -14,6 +14,9 @@ UI 项目框架必须严格按下述树状结构组织，保持高度模块化�
 project_root/
 ├─lvgl/                 # LVGL 核心库 (v9.5.0 稳定分支)
 ├─SDL2-2.32.6/          # SDL2 跨平台模拟库
+├─tests/                                   # 测试目录，创建应用时同时创建测试脚本
+│  ├─test_weather.c                        # 验证天气的脚本放这里
+│  └─test_calculator.c                     # 验证计算器的脚本放这里
 └─src/
    ├─main.c               # 模拟器入口：lv_init → sdl_hal_init(320,240) → ui_init → 主循环
    ├─freertos_main.c      # FreeRTOS 模式入口（LV_USE_OS == LV_OS_FREERTOS 时）

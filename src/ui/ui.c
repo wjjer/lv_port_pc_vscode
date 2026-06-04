@@ -12,6 +12,7 @@
 #include "pages/games/airplane/flygame.h"
 #include "pages/games/pvz/pvz.h"
 #include "pages/app/poetry/ui_poetry.h"
+#include "pages/app/pomodoro/ui_pomodoro.h"
 // 样式宏定义
 #define IOS_ICON_RADIUS 12
 #define COLOR_TEXT_DIM  lv_color_hex(0x94A3B8)
@@ -36,7 +37,7 @@ LV_IMAGE_DECLARE(icon_calculator);
 
 // Dock 图标数据
 const char * dock_icon_names[] = {
-    "AI", "时钟", "天气", "日历"
+    "豆包", "时钟", "天气", "日历"
 };
 
 const void * dock_icons[] = {
@@ -48,7 +49,7 @@ const void * dock_icons[] = {
 
 // 模拟图标数据
 const char * icon_names[] = {
-   "设置", "时钟", "AI", "日历", "天气", "提醒", "计算器", "诗词园地", "飞机游戏", "pvz游戏"
+   "设置", "时钟", "豆包", "日历", "天气", "提醒", "计算器", "诗词园地", "飞机游戏", "pvz游戏", "番茄时钟"
 };
 
 // 这里的数组存放的是图片的地址
@@ -62,7 +63,8 @@ const void * ios_icons[] = {
     &icon_calculator,
     NULL,  // 诗词园地：图标暂不显示
     NULL,  // 飞机游戏：图标暂不显示
-    NULL   // pvz游戏：图标暂不显示
+    NULL,  // pvz游戏：图标暂不显示
+    NULL   // 番茄时钟：图标暂不显示
 };
 
 // 页面指示器圆点
@@ -119,6 +121,8 @@ static void icon_event_cb(lv_event_t * e) {
             pvz_toggle();
         } else if(strcmp(name, "诗词园地") == 0) {
             ui_poetry_show();
+        } else if(strcmp(name, "番茄时钟") == 0) {
+            ui_pomodoro_show();
         }
     }
 }

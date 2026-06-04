@@ -28,7 +28,7 @@ AI Agent 在为其构建新组件或新页面时，必须强制继承并遵循�
 - **命名规范**: 遵循 `ui_<app_name>_<sub_page>.c` 格式。
   * 例如时钟应用 (Clock)：
     - 主界面: `src/ui/pages/system/clock/ui_clock.c`
-    - 添加闹钟界面: `src/ui/pages/system/clock/ui_clock_add.c`
+    - 添加闹钟界面: `src/ui/pages/system/clock/ui_clock_create.c`
 - **命名前缀隔离**: 某个应用特有的所有全局变量、函数、全局组件，必须统一加上 `ui_<app_name>_` 前缀，防止在最终固件链接时发生符号冲突（Symbol Collision）。
 
 ## 4. SPI 低带宽屏幕性能红线
