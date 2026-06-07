@@ -19,6 +19,10 @@ void ui_init(void);
 // 创建图标
 lv_obj_t * create_icon(lv_obj_t * parent, const char * name, const void * src_img);
 
+// Dock 栏控制接口
+void ui_dock_hide(void);
+void ui_dock_show(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -547,6 +547,18 @@ void create_dock(void) {
     }
 }
 
+void ui_dock_hide(void) {
+    if (dock_container != NULL) {
+        lv_obj_add_flag(dock_container, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void ui_dock_show(void) {
+    if (dock_container != NULL) {
+        lv_obj_remove_flag(dock_container, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 void ui_init(void) {
 
 

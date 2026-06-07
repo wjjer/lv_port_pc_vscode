@@ -1,6 +1,7 @@
 #include "ui_poetry.h"
 #include "ui_poetry_view.h"
 #include "ui_poetry_data.h"
+#include "../../../ui.h"
 #include <string.h>
 
 // 实体定义：全局核心容器
@@ -112,6 +113,7 @@ void ui_poetry_set_current_poem_index(uint16_t index) {
 void ui_poetry_show(void) {
     ui_poetry_hide();
     ui_poetry_data_init(); // 初始化诗词数据
+    ui_dock_hide(); // 隐藏Dock栏
     app_screen = lv_obj_create(NULL);
     ui_poetry_route_to_home();
     lv_screen_load(app_screen);
@@ -124,4 +126,5 @@ void ui_poetry_hide(void) {
         current_page = NULL;
         is_playing = false;
     }
+    ui_dock_show(); // 显示Dock栏
 }

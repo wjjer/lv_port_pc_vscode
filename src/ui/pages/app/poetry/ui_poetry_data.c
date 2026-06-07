@@ -1,10 +1,118 @@
 #include "ui_poetry_data.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 poetry_db_t g_poetry_db = {0};
 
-// 预定义的诗词数据（从唐诗三百首.txt精选的代表性诗词）
+// 从文件中读取诗词数据
+static void parse_poetry_file(const char *filepath) {
+    FILE *file = fopen(filepath, "r");
+    if (file == NULL) {
+        // 文件打开失败，使用硬编码数据
+        return;
+    }
+
+    char line[512];
+    uint16_t poem_count = 0;
+    char current_title[MAX_POEM_TITLE_LEN] = {0};
+    char current_author[MAX_POEM_AUTHOR_LEN] = {0};
+    char current_content[MAX_POEM_CONTENT_LEN] = {0};
+    uint8_t current_stage = 0;
+    int content_lines = 0;
+
+    while (fgets(line, sizeof(line), file) && poem_count < MAX_POEMS) {
+        // 移除行尾的换行符
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+            len--;
+        }
+
+        // 跳过空行
+        if (len == 0) {
+            // 如果已经有诗词内容，保存当前诗词
+            if (current_title[0] != '\0' && current_content[0] != '\0') {
+                strncpy(g_poetry_db.poems[poem_count].title, current_title, MAX_POEM_TITLE_LEN - 1);
+                strncpy(g_poetry_db.poems[poem_count].author, current_author, MAX_POEM_AUTHOR_LEN - 1);
+                strncpy(g_poetry_db.poems[poem_count].content, current_content, MAX_POEM_CONTENT_LEN - 1);
+                strcpy(g_poetry_db.poems[poem_count].notes, "");
+                g_poetry_db.poems[poem_count].stage = current_stage;
+                g_poetry_db.stage_counts[current_stage]++;
+
+                poem_count++;
+                memset(current_title, 0, sizeof(current_title));
+                memset(current_author, 0, sizeof(current_author));
+                memset(current_content, 0, sizeof(current_content));
+                content_lines = 0;
+            }
+            continue;
+        }
+
+        // 检查诗词标题行 格式: 序号作者：标题
+        if (isdigit(line[0]) && line[1] >= '0' && line[1] <= '9') {
+            // 保存上一首诗词
+            if (current_title[0] != '\0' && current_content[0] != '\0') {
+                strncpy(g_poetry_db.poems[poem_count].title, current_title, MAX_POEM_TITLE_LEN - 1);
+                strncpy(g_poetry_db.poems[poem_count].author, current_author, MAX_POEM_AUTHOR_LEN - 1);
+                strncpy(g_poetry_db.poems[poem_count].content, current_content, MAX_POEM_CONTENT_LEN - 1);
+                strcpy(g_poetry_db.poems[poem_count].notes, "");
+                g_poetry_db.poems[poem_count].stage = current_stage;
+                g_poetry_db.stage_counts[current_stage]++;
+
+                poem_count++;
+                memset(current_content, 0, sizeof(current_content));
+                content_lines = 0;
+            }
+
+            // 解析新的诗词行 格式: "010杜甫：佳人"
+            char *colon = strchr(line, '：');
+            if (colon != NULL) {
+                // 分离作者和标题
+                strncpy(current_author, colon - 4, 4); // 取作者名
+                current_author[4] = '\0';
+                strncpy(current_title, colon + 1, MAX_POEM_TITLE_LEN - 1);
+
+                // 根据编号估计阶段（10-50小学，51-200初中，201+高中）
+                int poem_id = atoi(line);
+                if (poem_id <= 50) {
+                    current_stage = 0; // 小学
+                } else if (poem_id <= 200) {
+                    current_stage = 1; // 初中
+                } else {
+                    current_stage = 2; // 高中
+                }
+            }
+            continue;
+        }
+
+        // 诗词内容行
+        if (current_title[0] != '\0') {
+            if (content_lines > 0) {
+                strncat(current_content, "\n", MAX_POEM_CONTENT_LEN - strlen(current_content) - 1);
+            }
+            strncat(current_content, line, MAX_POEM_CONTENT_LEN - strlen(current_content) - 1);
+            content_lines++;
+        }
+    }
+
+    // 保存最后一首诗词
+    if (current_title[0] != '\0' && current_content[0] != '\0' && poem_count < MAX_POEMS) {
+        strncpy(g_poetry_db.poems[poem_count].title, current_title, MAX_POEM_TITLE_LEN - 1);
+        strncpy(g_poetry_db.poems[poem_count].author, current_author, MAX_POEM_AUTHOR_LEN - 1);
+        strncpy(g_poetry_db.poems[poem_count].content, current_content, MAX_POEM_CONTENT_LEN - 1);
+        strcpy(g_poetry_db.poems[poem_count].notes, "");
+        g_poetry_db.poems[poem_count].stage = current_stage;
+        g_poetry_db.stage_counts[current_stage]++;
+        poem_count++;
+    }
+
+    fclose(file);
+    g_poetry_db.count = poem_count;
+}
+
+// 预定义的诗词数据（备选方案，当文件读取失败时使用）
 static const struct {
     const char *title;
     const char *author;
@@ -87,21 +195,26 @@ static const struct {
 void ui_poetry_data_init(void) {
     memset(&g_poetry_db, 0, sizeof(poetry_db_t));
 
-    // 导入预定义数据
-    uint16_t count = sizeof(poetry_data) / sizeof(poetry_data[0]);
-    if (count > MAX_POEMS) count = MAX_POEMS;
+    // 尝试从文件读取诗词
+    parse_poetry_file("src/ui/assets/唐诗三百首.txt");
 
-    for (uint16_t i = 0; i < count; i++) {
-        strncpy(g_poetry_db.poems[i].title, poetry_data[i].title, MAX_POEM_TITLE_LEN - 1);
-        strncpy(g_poetry_db.poems[i].author, poetry_data[i].author, MAX_POEM_AUTHOR_LEN - 1);
-        strncpy(g_poetry_db.poems[i].content, poetry_data[i].content, MAX_POEM_CONTENT_LEN - 1);
-        strncpy(g_poetry_db.poems[i].notes, poetry_data[i].notes, MAX_POEM_NOTES_LEN - 1);
-        g_poetry_db.poems[i].stage = poetry_data[i].stage;
+    // 如果文件读取失败或数据为空，使用硬编码数据
+    if (g_poetry_db.count == 0) {
+        uint16_t count = sizeof(poetry_data) / sizeof(poetry_data[0]);
+        if (count > MAX_POEMS) count = MAX_POEMS;
 
-        g_poetry_db.stage_counts[poetry_data[i].stage]++;
+        for (uint16_t i = 0; i < count; i++) {
+            strncpy(g_poetry_db.poems[i].title, poetry_data[i].title, MAX_POEM_TITLE_LEN - 1);
+            strncpy(g_poetry_db.poems[i].author, poetry_data[i].author, MAX_POEM_AUTHOR_LEN - 1);
+            strncpy(g_poetry_db.poems[i].content, poetry_data[i].content, MAX_POEM_CONTENT_LEN - 1);
+            strncpy(g_poetry_db.poems[i].notes, poetry_data[i].notes, MAX_POEM_NOTES_LEN - 1);
+            g_poetry_db.poems[i].stage = poetry_data[i].stage;
+
+            g_poetry_db.stage_counts[poetry_data[i].stage]++;
+        }
+
+        g_poetry_db.count = count;
     }
-
-    g_poetry_db.count = count;
 }
 
 poem_t *ui_poetry_get_poem(uint16_t index) {
@@ -126,3 +239,4 @@ poem_t *ui_poetry_get_stage_poem(uint8_t stage, uint16_t index) {
     }
     return NULL;
 }
+
