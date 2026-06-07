@@ -36,6 +36,8 @@ static lv_obj_t *ringtone_btn = NULL;
 static lv_obj_t *ringtone_label = NULL;
 static lv_obj_t *ringtone_page = NULL;
 
+static alarm_saved_callback_t saved_callback = NULL;
+
 static const char *ringtone_list[] = {
     "默认铃声",
     "清晨鸟鸣",
@@ -332,6 +334,10 @@ static void save_alarm_cb(lv_event_t *e)
     has_new_data = true;
 
     ui_alarm_create_hide();
+
+    // 调用回调函数通知时钟页面更新
+    if (saved_callback != NULL)
+        saved_callback();
 }
 
 // =========================
@@ -1034,6 +1040,11 @@ void ui_alarm_create_get_data(alarm_data_t *out)
            sizeof(alarm_data_t));
 
     has_new_data = false;
+}
+
+void ui_alarm_create_set_saved_callback(alarm_saved_callback_t cb)
+{
+    saved_callback = cb;
 }
 
 // =========================

@@ -1,5 +1,6 @@
 #include "ui_clock.h"
 #include "ui_alarm_create.h"
+#include "ui_alarm_persist.h"
 #include "../../../components/ui_titlebar.h"
 #include "../../../ui.h"
 #include <stdio.h>
@@ -31,6 +32,7 @@ static lv_obj_t *sw_min_label;
 static lv_obj_t *sw_sec_label;
 static lv_obj_t *sw_ms_label;
 static lv_obj_t *lap_list;
+static lv_obj_t *lap_panel = NULL;
 
 static lv_timer_t *sw_timer = NULL;
 
@@ -56,11 +58,13 @@ typedef struct
     uint8_t hour;
     uint8_t minute;
     bool active;
+    bool repeat;
     char label[64];
+    char ringtone[64];
 } alarm_t;
 
 static alarm_t alarms[MAX_ALARMS];
-static int alarm_count = 3;
+static int alarm_count = 0;
 
 // =========================
 // 前置声明
@@ -70,6 +74,8 @@ void render_stopwatch_view(void);
 static void add_alarm_from_create_page(void);
 static void render_lap_list(void);
 static void alarm_delete_at(int index);
+static void refresh_alarm_view(void);
+static void toggle_lap_panel_cb(lv_event_t *e);
 
 // 长按删除：记录当前待删除的闹钟下标
 static int pending_delete_index = -1;
@@ -139,7 +145,97 @@ static void sw_lap_cb(lv_event_t *e)
         sw_lap_time = current_time;
         lap_count++;
 
-        render_lap_list();
+        // 如果侧边栏不存在，创建它
+        if (lap_panel == NULL)
+        {
+            // 创建侧边栏
+            int panel_width = (UI_SCREEN_WIDTH * 3) / 5;
+            int panel_height = UI_SCREEN_HEIGHT - UI_TITLEBAR_HEIGHT;
+            int panel_x = UI_SCREEN_WIDTH - panel_width;
+
+            lap_panel = lv_obj_create(lv_layer_top());
+            lv_obj_set_size(lap_panel, panel_width, panel_height);
+            lv_obj_set_pos(lap_panel, UI_SCREEN_WIDTH, UI_TITLEBAR_HEIGHT);
+            lv_obj_set_style_bg_color(lap_panel, COLOR_SURFACE, 0);
+            lv_obj_set_style_border_width(lap_panel, 1, 0);
+            lv_obj_set_style_border_color(lap_panel, COLOR_DIVIDER, 0);
+            lv_obj_set_style_pad_all(lap_panel, 0, 0);
+            lv_obj_set_scrollbar_mode(lap_panel, LV_SCROLLBAR_MODE_AUTO);
+            lv_obj_set_scroll_dir(lap_panel, LV_DIR_VER);
+
+            // 标题
+            lv_obj_t *title = lv_label_create(lap_panel);
+            lv_label_set_text(title, "计次");
+            lv_obj_set_style_text_font(title, &font, 0);
+            lv_obj_set_style_text_color(title, COLOR_TEXT_MAIN, 0);
+            lv_obj_set_width(title, lv_pct(100));
+            lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_set_style_pad_top(title, 8, 0);
+            lv_obj_set_style_pad_bottom(title, 8, 0);
+
+            // 关闭按钮
+            lv_obj_t *close_btn = lv_button_create(lap_panel);
+            lv_obj_set_size(close_btn, 28, 24);
+            lv_obj_align(close_btn, LV_ALIGN_TOP_RIGHT, -4, 2);
+            lv_obj_set_style_bg_color(close_btn, COLOR_ACCENT, 0);
+            lv_obj_set_style_radius(close_btn, 4, 0);
+            lv_obj_set_style_border_width(close_btn, 0, 0);
+
+            lv_obj_t *close_lbl = lv_label_create(close_btn);
+            lv_label_set_text(close_lbl, "-");
+            lv_obj_set_style_text_font(close_lbl, &lv_font_montserrat_20, 0);
+            lv_obj_set_style_text_color(close_lbl, lv_color_white(), 0);
+            lv_obj_center(close_lbl);
+
+            lv_obj_add_event_cb(close_btn, toggle_lap_panel_cb, LV_EVENT_CLICKED, NULL);
+
+            // 计次列表容器
+            lap_list = lv_obj_create(lap_panel);
+            lv_obj_set_size(lap_list, lv_pct(100), panel_height - 45);
+            lv_obj_set_pos(lap_list, 0, 35);
+            lv_obj_set_style_bg_opa(lap_list, 0, 0);
+            lv_obj_set_style_border_width(lap_list, 0, 0);
+            lv_obj_set_style_pad_all(lap_list, 4, 0);
+            lv_obj_set_scrollbar_mode(lap_list, LV_SCROLLBAR_MODE_AUTO);
+            lv_obj_set_scroll_dir(lap_list, LV_DIR_VER);
+
+            render_lap_list();
+
+            if (status_bar)
+                lv_obj_move_foreground(status_bar);
+
+            // 动画 1：侧边栏滑入
+            lv_anim_t anim1;
+            lv_anim_init(&anim1);
+            lv_anim_set_var(&anim1, lap_panel);
+            lv_anim_set_values(&anim1, UI_SCREEN_WIDTH, panel_x);
+            lv_anim_set_time(&anim1, 250);
+            lv_anim_set_exec_cb(&anim1, (lv_anim_exec_xcb_t)lv_obj_set_x);
+            lv_anim_set_path_cb(&anim1, lv_anim_path_ease_out);
+            lv_anim_start(&anim1);
+
+            // 动画 2：延迟 300ms 后侧边栏滑出
+            lv_anim_t anim2;
+            lv_anim_init(&anim2);
+            lv_anim_set_var(&anim2, lap_panel);
+            lv_anim_set_values(&anim2, panel_x, UI_SCREEN_WIDTH);
+            lv_anim_set_time(&anim2, 250);
+            lv_anim_set_exec_cb(&anim2, (lv_anim_exec_xcb_t)lv_obj_set_x);
+            lv_anim_set_path_cb(&anim2, lv_anim_path_ease_in);
+            lv_anim_set_delay(&anim2, 300);
+            lv_anim_start(&anim2);
+
+            // 动画 3：延迟 550ms 后删除
+            lv_obj_t *panel_to_close = lap_panel;
+            lv_obj_delete_delayed(panel_to_close, 550);
+            lap_panel = NULL;
+            lap_list = NULL;
+        }
+        else if (lap_list != NULL)
+        {
+            // 侧边栏已存在，仅刷新列表
+            render_lap_list();
+        }
     }
 }
 
@@ -158,6 +254,102 @@ static void sw_reset_cb(lv_event_t *e)
     memset(laps, 0, sizeof(laps));
 
     render_stopwatch_view();
+}
+
+// =========================
+// 切换计次列表侧边栏
+// =========================
+static void toggle_lap_panel_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+
+    if (lap_panel == NULL)
+    {
+        // 创建侧边栏（占屏幕 3/5，从下方开始，不遮挡标题栏）
+        int panel_width = (UI_SCREEN_WIDTH * 3) / 5;
+        int panel_height = UI_SCREEN_HEIGHT - UI_TITLEBAR_HEIGHT;
+        int panel_x = UI_SCREEN_WIDTH - panel_width;
+
+        lap_panel = lv_obj_create(lv_layer_top());
+        lv_obj_set_size(lap_panel, panel_width, panel_height);
+        lv_obj_set_pos(lap_panel, UI_SCREEN_WIDTH, UI_TITLEBAR_HEIGHT);
+        lv_obj_set_style_bg_color(lap_panel, COLOR_SURFACE, 0);
+        lv_obj_set_style_border_width(lap_panel, 1, 0);
+        lv_obj_set_style_border_color(lap_panel, COLOR_DIVIDER, 0);
+        lv_obj_set_style_pad_all(lap_panel, 0, 0);
+        lv_obj_set_scrollbar_mode(lap_panel, LV_SCROLLBAR_MODE_AUTO);
+        lv_obj_set_scroll_dir(lap_panel, LV_DIR_VER);
+
+        // 标题
+        lv_obj_t *title = lv_label_create(lap_panel);
+        lv_label_set_text(title, "计次");
+        lv_obj_set_style_text_font(title, &font, 0);
+        lv_obj_set_style_text_color(title, COLOR_TEXT_MAIN, 0);
+        lv_obj_set_width(title, lv_pct(100));
+        lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_pad_top(title, 8, 0);
+        lv_obj_set_style_pad_bottom(title, 8, 0);
+
+        // 关闭按钮
+        lv_obj_t *close_btn = lv_button_create(lap_panel);
+        lv_obj_set_size(close_btn, 28, 24);
+        lv_obj_align(close_btn, LV_ALIGN_TOP_RIGHT, -4, 2);
+        lv_obj_set_style_bg_color(close_btn, COLOR_ACCENT, 0);
+        lv_obj_set_style_radius(close_btn, 4, 0);
+        lv_obj_set_style_border_width(close_btn, 0, 0);
+
+        lv_obj_t *close_lbl = lv_label_create(close_btn);
+        lv_label_set_text(close_lbl, "-");
+        lv_obj_set_style_text_font(close_lbl, &lv_font_montserrat_20, 0);
+        lv_obj_set_style_text_color(close_lbl, lv_color_white(), 0);
+        lv_obj_center(close_lbl);
+
+        lv_obj_add_event_cb(close_btn, toggle_lap_panel_cb, LV_EVENT_CLICKED, NULL);
+
+        // 计次列表容器
+        lap_list = lv_obj_create(lap_panel);
+        lv_obj_set_size(lap_list, lv_pct(100), panel_height - 45);
+        lv_obj_set_pos(lap_list, 0, 35);
+        lv_obj_set_style_bg_opa(lap_list, 0, 0);
+        lv_obj_set_style_border_width(lap_list, 0, 0);
+        lv_obj_set_style_pad_all(lap_list, 4, 0);
+        lv_obj_set_scrollbar_mode(lap_list, LV_SCROLLBAR_MODE_AUTO);
+        lv_obj_set_scroll_dir(lap_list, LV_DIR_VER);
+
+        render_lap_list();
+
+        if (status_bar)
+            lv_obj_move_foreground(status_bar);
+
+        // 添加滑入动画：从右侧滑入到指定位置
+        lv_anim_t anim;
+        lv_anim_init(&anim);
+        lv_anim_set_var(&anim, lap_panel);
+        lv_anim_set_values(&anim, UI_SCREEN_WIDTH, panel_x);
+        lv_anim_set_time(&anim, 300);
+        lv_anim_set_exec_cb(&anim, (lv_anim_exec_xcb_t)lv_obj_set_x);
+        lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+        lv_anim_start(&anim);
+    }
+    else
+    {
+        // 关闭侧边栏：添加滑出动画
+        lv_obj_t *panel_to_close = lap_panel;
+        lv_anim_t anim;
+        lv_anim_init(&anim);
+        lv_anim_set_var(&anim, panel_to_close);
+        lv_anim_set_values(&anim, lv_obj_get_x(panel_to_close), UI_SCREEN_WIDTH);
+        lv_anim_set_time(&anim, 300);
+        lv_anim_set_exec_cb(&anim, (lv_anim_exec_xcb_t)lv_obj_set_x);
+        lv_anim_set_path_cb(&anim, lv_anim_path_ease_in);
+        lv_anim_start(&anim);
+
+        lap_panel = NULL;
+        lap_list = NULL;
+
+        // 延迟删除，等动画完成
+        lv_obj_delete_delayed(panel_to_close, 300);
+    }
 }
 
 // =========================
@@ -212,6 +404,19 @@ static void alarm_delete_at(int index)
 
     alarm_count--;
     memset(&alarms[alarm_count], 0, sizeof(alarm_t));
+
+    // 保存到存储
+    alarm_persist_t persist_data[MAX_ALARMS];
+    for (int i = 0; i < alarm_count; i++)
+    {
+        persist_data[i].hour = alarms[i].hour;
+        persist_data[i].minute = alarms[i].minute;
+        persist_data[i].active = alarms[i].active;
+        persist_data[i].repeat = false;
+        strncpy(persist_data[i].label, alarms[i].label, sizeof(persist_data[i].label) - 1);
+        strncpy(persist_data[i].ringtone, alarms[i].ringtone, sizeof(persist_data[i].ringtone) - 1);
+    }
+    ui_alarm_persist_save(persist_data, alarm_count);
 
     render_alarm_view();
 }
@@ -285,6 +490,19 @@ static void alarm_switch_cb(lv_event_t *e)
         return;
 
     alarms[index].active = lv_obj_has_state(sw, LV_STATE_CHECKED);
+
+    // 保存到存储
+    alarm_persist_t persist_data[MAX_ALARMS];
+    for (int i = 0; i < alarm_count; i++)
+    {
+        persist_data[i].hour = alarms[i].hour;
+        persist_data[i].minute = alarms[i].minute;
+        persist_data[i].active = alarms[i].active;
+        persist_data[i].repeat = false;
+        strncpy(persist_data[i].label, alarms[i].label, sizeof(persist_data[i].label) - 1);
+        strncpy(persist_data[i].ringtone, alarms[i].ringtone, sizeof(persist_data[i].ringtone) - 1);
+    }
+    ui_alarm_persist_save(persist_data, alarm_count);
 }
 
 // =========================
@@ -423,6 +641,19 @@ static void add_alarm_from_create_page(void)
     alarms[alarm_count].label[sizeof(alarms[0].label) - 1] = '\0';
     alarm_count++;
 
+    // 保存到存储
+    alarm_persist_t persist_data[MAX_ALARMS];
+    for (int i = 0; i < alarm_count; i++)
+    {
+        persist_data[i].hour = alarms[i].hour;
+        persist_data[i].minute = alarms[i].minute;
+        persist_data[i].active = alarms[i].active;
+        persist_data[i].repeat = false;
+        strncpy(persist_data[i].label, alarms[i].label, sizeof(persist_data[i].label) - 1);
+        strncpy(persist_data[i].ringtone, alarms[i].ringtone, sizeof(persist_data[i].ringtone) - 1);
+    }
+    ui_alarm_persist_save(persist_data, alarm_count);
+
     render_alarm_view();
 }
 
@@ -446,10 +677,32 @@ void render_alarm_view(void)
 
     lv_obj_set_style_pad_top(content_area, 10, 0);
 
-    for (int i = 0; i < alarm_count; i++)
+    if (alarm_count == 0)
     {
-        add_alarm_item(content_area, i,i * ITEM_HEIGHT);
+        // 显示"暂无闹钟"提示
+        lv_obj_t *empty_label = lv_label_create(content_area);
+        lv_label_set_text(empty_label, "暂无闹钟");
+        lv_obj_set_style_text_font(empty_label, &font, 0);
+        lv_obj_set_style_text_color(empty_label, COLOR_TEXT_SECOND, 0);
+        lv_obj_set_width(empty_label, lv_pct(100));
+        lv_obj_set_style_text_align(empty_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(empty_label, LV_ALIGN_CENTER, 0, 0);
     }
+    else
+    {
+        for (int i = 0; i < alarm_count; i++)
+        {
+            add_alarm_item(content_area, i,i * ITEM_HEIGHT);
+        }
+    }
+}
+
+// =========================
+// 刷新闹钟页面（供创建页面回调调用）
+// =========================
+static void refresh_alarm_view(void)
+{
+    add_alarm_from_create_page();
 }
 
 // =========================
@@ -459,70 +712,72 @@ void render_stopwatch_view(void)
 {
     lv_obj_clean(content_area);
     lv_obj_set_scroll_dir(content_area,LV_DIR_VER);
-    lv_obj_set_scrollbar_mode(content_area,LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_scrollbar_mode(content_area,LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_all(content_area, 0, 0);
     int min = (int)(sw_elapsed_ms / 60000);
     int sec = (int)((sw_elapsed_ms / 1000) % 60);
     int ms = (int)(sw_elapsed_ms % 1000);
 
+    // 时间显示（压缩高度）
     lv_obj_t *time_container = lv_obj_create(content_area);
-    lv_obj_set_size(time_container, UI_SCREEN_WIDTH, 80);
-    lv_obj_set_pos(time_container, 0, 0);
+    lv_obj_set_size(time_container, UI_SCREEN_WIDTH, 70);
+    lv_obj_set_pos(time_container, 0, 5);
     lv_obj_set_style_bg_opa(time_container, 0, 0);
     lv_obj_set_style_border_width(time_container, 0, 0);
     lv_obj_set_style_pad_all(time_container, 0, 0);
     lv_obj_remove_flag(time_container, LV_OBJ_FLAG_SCROLLABLE);
 
-    int time_width = 180;
+    int time_width = 160;
     int time_start_x = (UI_SCREEN_WIDTH - time_width) / 2;
 
     sw_min_label = lv_label_create(time_container);
     lv_label_set_text_fmt(sw_min_label, "%02d", min);
-    lv_obj_set_style_text_font(sw_min_label, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(sw_min_label, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(sw_min_label, COLOR_TEXT_MAIN, 0);
-    lv_obj_set_pos(sw_min_label, time_start_x, 20);
+    lv_obj_set_pos(sw_min_label, time_start_x, 8);
 
     lv_obj_t *colon1 = lv_label_create(time_container);
     lv_label_set_text(colon1, ":");
-    lv_obj_set_style_text_font(colon1, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(colon1, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(colon1, COLOR_TEXT_MAIN, 0);
-    lv_obj_set_pos(colon1, time_start_x + 55, 20);
+    lv_obj_set_pos(colon1, time_start_x + 48, 8);
 
     sw_sec_label = lv_label_create(time_container);
     lv_label_set_text_fmt(sw_sec_label, "%02d", sec);
-    lv_obj_set_style_text_font(sw_sec_label, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(sw_sec_label, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(sw_sec_label, COLOR_TEXT_MAIN, 0);
-    lv_obj_set_pos(sw_sec_label, time_start_x + 75, 20);
+    lv_obj_set_pos(sw_sec_label, time_start_x + 65, 8);
 
     lv_obj_t *colon2 = lv_label_create(time_container);
     lv_label_set_text(colon2, ".");
-    lv_obj_set_style_text_font(colon2, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(colon2, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(colon2, COLOR_TEXT_MAIN, 0);
-    lv_obj_set_pos(colon2, time_start_x + 125, 20);
+    lv_obj_set_pos(colon2, time_start_x + 110, 8);
 
     sw_ms_label = lv_label_create(time_container);
     lv_label_set_text_fmt(sw_ms_label, "%03d", ms);
-    lv_obj_set_style_text_font(sw_ms_label, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(sw_ms_label, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(sw_ms_label, COLOR_TEXT_SECOND, 0);
-    lv_obj_set_pos(sw_ms_label, time_start_x + 140, 28);
+    lv_obj_set_pos(sw_ms_label, time_start_x + 125, 14);
 
+    // 按钮（更紧凑）
     lv_obj_t *btn_container = lv_obj_create(content_area);
     lv_obj_set_size(btn_container, UI_SCREEN_WIDTH, 45);
-    lv_obj_set_pos(btn_container, 0, 75);
+    lv_obj_set_pos(btn_container, 0, 80);
     lv_obj_set_style_bg_opa(btn_container, 0, 0);
     lv_obj_set_style_border_width(btn_container, 0, 0);
     lv_obj_set_style_pad_all(btn_container, 0, 0);
     lv_obj_remove_flag(btn_container, LV_OBJ_FLAG_SCROLLABLE);
 
-    int btn_width = 65;
-    int btn_gap = 10;
+    int btn_width = 55;
+    int btn_gap = 8;
     int total_btn_width = btn_width * 3 + btn_gap * 2;
     int btn_start_x = (UI_SCREEN_WIDTH - total_btn_width) / 2;
 
     lv_obj_t *lap_btn = lv_button_create(btn_container);
-    lv_obj_set_size(lap_btn, btn_width, 34);
-    lv_obj_set_pos(lap_btn, btn_start_x, 5);
-    lv_obj_set_style_radius(lap_btn, 17, 0);
+    lv_obj_set_size(lap_btn, btn_width, 30);
+    lv_obj_set_pos(lap_btn, btn_start_x, 7);
+    lv_obj_set_style_radius(lap_btn, 15, 0);
     lv_obj_set_style_bg_color(lap_btn, COLOR_SURFACE, 0);
     lv_obj_set_style_shadow_width(lap_btn, 0, 0);
     lv_obj_set_style_border_width(lap_btn, 0, 0);
@@ -536,9 +791,9 @@ void render_stopwatch_view(void)
     lv_obj_add_event_cb(lap_btn, sw_lap_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *main_btn = lv_button_create(btn_container);
-    lv_obj_set_size(main_btn, btn_width, 34);
-    lv_obj_set_pos(main_btn, btn_start_x + btn_width + btn_gap, 5);
-    lv_obj_set_style_radius(main_btn, 17, 0);
+    lv_obj_set_size(main_btn, btn_width, 30);
+    lv_obj_set_pos(main_btn, btn_start_x + btn_width + btn_gap, 7);
+    lv_obj_set_style_radius(main_btn, 15, 0);
     lv_obj_set_style_bg_color(main_btn, sw_running ? COLOR_RED : COLOR_GREEN, 0);
     lv_obj_set_style_shadow_width(main_btn, 0, 0);
     lv_obj_set_style_border_width(main_btn, 0, 0);
@@ -552,9 +807,9 @@ void render_stopwatch_view(void)
     lv_obj_add_event_cb(main_btn, sw_btn_event_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *reset_btn = lv_button_create(btn_container);
-    lv_obj_set_size(reset_btn, btn_width, 34);
-    lv_obj_set_pos(reset_btn, btn_start_x + (btn_width + btn_gap) * 2, 5);
-    lv_obj_set_style_radius(reset_btn, 17, 0);
+    lv_obj_set_size(reset_btn, btn_width, 30);
+    lv_obj_set_pos(reset_btn, btn_start_x + (btn_width + btn_gap) * 2, 7);
+    lv_obj_set_style_radius(reset_btn, 15, 0);
     lv_obj_set_style_bg_color(reset_btn, COLOR_SURFACE, 0);
     lv_obj_set_style_shadow_width(reset_btn, 0, 0);
     lv_obj_set_style_border_width(reset_btn, 0, 0);
@@ -566,17 +821,6 @@ void render_stopwatch_view(void)
     lv_obj_center(reset_lbl);
 
     lv_obj_add_event_cb(reset_btn, sw_reset_cb, LV_EVENT_CLICKED, NULL);
-
-    lap_list = lv_obj_create(content_area);
-    lv_obj_set_size(lap_list, UI_SCREEN_WIDTH, ui_get_content_height() - 125);
-    lv_obj_set_pos(lap_list, 0, 125);
-    lv_obj_set_style_bg_opa(lap_list, 0, 0);
-    lv_obj_set_style_border_width(lap_list, 0, 0);
-    lv_obj_set_style_pad_all(lap_list, 0, 0);
-    lv_obj_set_scrollbar_mode(lap_list, LV_SCROLLBAR_MODE_AUTO);
-    lv_obj_set_scroll_dir(lap_list, LV_DIR_VER);
-
-    render_lap_list();
 
     if (!sw_timer)
         sw_timer = lv_timer_create(sw_timer_cb,10,NULL);
@@ -628,8 +872,8 @@ static void nav_event_cb(lv_event_t * e)
             "时钟",
             (lv_event_cb_t)ui_clock_hide,
             NULL,
-            NULL,
-            NULL,
+            "列表",
+            toggle_lap_panel_cb,
             NULL,
             NULL,
             NULL,
@@ -642,22 +886,59 @@ static void nav_event_cb(lv_event_t * e)
 // =========================
 static void init_alarms(void)
 {
-    alarms[0].hour = 7;
-    alarms[0].minute = 30;
-    alarms[0].active = true;
-    strcpy(alarms[0].label, "工作日");
+    // 尝试从存储加载
+    alarm_persist_t persist_data[MAX_ALARMS];
+    int loaded_count = ui_alarm_persist_load(persist_data, MAX_ALARMS);
 
-    alarms[1].hour = 9;
-    alarms[1].minute = 0;
-    alarms[1].active = false;
-    strcpy(alarms[1].label, "周末");
+    if (loaded_count >= 0)
+    {
+        // 加载成功（可能是 0 条，也可能是多条）
+        alarm_count = loaded_count;
+        for (int i = 0; i < loaded_count; i++)
+        {
+            alarms[i].hour = persist_data[i].hour;
+            alarms[i].minute = persist_data[i].minute;
+            alarms[i].active = persist_data[i].active;
+            strncpy(alarms[i].label, persist_data[i].label, sizeof(alarms[i].label) - 1);
+            alarms[i].label[sizeof(alarms[i].label) - 1] = '\0';
+            strncpy(alarms[i].ringtone, persist_data[i].ringtone, sizeof(alarms[i].ringtone) - 1);
+            alarms[i].ringtone[sizeof(alarms[i].ringtone) - 1] = '\0';
+        }
+    }
+    else
+    {
+        // 加载失败（文件可能损坏），使用默认初始数据
+        alarms[0].hour = 7;
+        alarms[0].minute = 30;
+        alarms[0].active = true;
+        strcpy(alarms[0].label, "工作日");
 
-    alarms[2].hour = 12;
-    alarms[2].minute = 0;
-    alarms[2].active = true;
-    strcpy(alarms[2].label, "午休");
+        alarms[1].hour = 9;
+        alarms[1].minute = 0;
+        alarms[1].active = false;
+        strcpy(alarms[1].label, "周末");
 
-    alarm_count = 3;
+        alarms[2].hour = 12;
+        alarms[2].minute = 0;
+        alarms[2].active = true;
+        strcpy(alarms[2].label, "午休");
+
+        alarm_count = 3;
+
+        // 保存默认数据到存储
+        alarm_persist_t default_data[3];
+        for (int i = 0; i < 3; i++)
+        {
+            default_data[i].hour = alarms[i].hour;
+            default_data[i].minute = alarms[i].minute;
+            default_data[i].active = alarms[i].active;
+            default_data[i].repeat = false;
+            strncpy(default_data[i].label, alarms[i].label, sizeof(default_data[i].label) - 1);
+            default_data[i].label[sizeof(default_data[i].label) - 1] = '\0';
+            memset(default_data[i].ringtone, 0, sizeof(default_data[i].ringtone));
+        }
+        ui_alarm_persist_save(default_data, 3);
+    }
 }
 
 // =========================
@@ -749,7 +1030,12 @@ void ui_clock_show(void)
 
     // 淡入动画
     lv_obj_fade_in(clock_page, 180, 0);
+
+    // 注册创建页面的回调
+    ui_alarm_create_set_saved_callback(refresh_alarm_view);
+
     init_alarms();
+    add_alarm_from_create_page();
     render_alarm_view();
 }
 
@@ -758,6 +1044,27 @@ void ui_clock_show(void)
 // =========================
 void ui_clock_hide(void)
 {
+    // 关闭侧边栏
+    if (lap_panel != NULL)
+    {
+        lv_obj_del(lap_panel);
+        lap_panel = NULL;
+        lap_list = NULL;
+    }
+
+    // 保存当前闹钟状态到存储
+    alarm_persist_t persist_data[MAX_ALARMS];
+    for (int i = 0; i < alarm_count; i++)
+    {
+        persist_data[i].hour = alarms[i].hour;
+        persist_data[i].minute = alarms[i].minute;
+        persist_data[i].active = alarms[i].active;
+        persist_data[i].repeat = false;
+        strncpy(persist_data[i].label, alarms[i].label, sizeof(persist_data[i].label) - 1);
+        strncpy(persist_data[i].ringtone, alarms[i].ringtone, sizeof(persist_data[i].ringtone) - 1);
+    }
+    ui_alarm_persist_save(persist_data, alarm_count);
+
     if (sw_timer)
     {
         lv_timer_del(sw_timer);

@@ -32,7 +32,7 @@
 ---
 
 ## 下一步 (Next Steps)
-1. **[优先级: 中]** - 剩余2个功能项处理中（详见CONSTRAINTS.md）
+1. **[优先级: 低]** - 暂无
 
 ## ⚖️ BACKPRESSURE COUNTER (反向压力实时计量)
 - **Total Features (总功能项)**: 14

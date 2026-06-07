@@ -28,4 +28,8 @@ void ui_alarm_create_get_data(alarm_data_t * out);
 // 隐藏铃声选择页面
 void ui_ringtone_page_hide(void);
 
+// 设置保存完成后的回调（由时钟页面注册）
+typedef void (*alarm_saved_callback_t)(void);
+void ui_alarm_create_set_saved_callback(alarm_saved_callback_t cb);
+
 #endif // UI_ALARM_CREATE_H
