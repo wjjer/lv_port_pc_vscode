@@ -1,130 +1,166 @@
 #include "ui_poetry.h"
-#include "ui_poetry_view.h"
 #include "ui_poetry_data.h"
 #include "../../../ui.h"
+#include "../../../components/ui_titlebar.h"
 #include <string.h>
 
-// 实体定义：全局核心容器
-lv_obj_t *app_screen = NULL;
-lv_obj_t *current_page = NULL;
-
-// 实体定义：公共样式
-lv_style_t style_btn_classic;
-static bool style_initialized = false;
-
-// 内部业务状态
-static bool is_playing = false;
-static uint8_t current_stage = 0;
+static lv_obj_t *poetry_page = NULL;
+static lv_obj_t *list_view = NULL;
+static lv_obj_t *detail_view = NULL;
 static uint16_t current_poem_index = 0;
 
-// 初始化应用特有样式
-static void ui_poetry_init_styles(void) {
-    if (style_initialized) return;
+// 前向声明
+static void show_list_view(void);
 
-    lv_style_init(&style_btn_classic);
-    lv_style_set_bg_color(&style_btn_classic, lv_color_hex(0x2C4A3E)); // 远山黛绿
-    lv_style_set_radius(&style_btn_classic, 8);
-    lv_style_set_border_width(&style_btn_classic, 0);
-    lv_style_set_shadow_width(&style_btn_classic, 0);
-
-    style_initialized = true;
+// 回调：返回列表
+static void back_btn_event_cb(lv_event_t *e) {
+    show_list_view();
 }
 
-// 路由控制：销毁旧页面
-static void clean_current_page(void) {
-    if (current_page != NULL) {
-        lv_obj_delete(current_page);
-        current_page = NULL;
+// 回调：列表项点击
+static void list_item_event_cb(lv_event_t *e) {
+    lv_obj_t *btn = lv_event_get_target(e);
+    uint16_t idx = (uint16_t)(uintptr_t)lv_obj_get_user_data(btn);
+    current_poem_index = idx;
+
+    if (detail_view != NULL) {
+        lv_obj_delete(detail_view);
+        detail_view = NULL;
     }
-}
-
-// ==========================================
-// 核心路由与页面切换控制 (Presenter 角色)
-// ==========================================
-
-void ui_poetry_route_to_home(void) {
-    clean_current_page();
-    ui_poetry_init_styles(); // 确保样式加载
-    ui_poetry_view_render_home();
-}
-
-void ui_poetry_route_to_list(const char *stage_title) {
-    clean_current_page();
-
-    // 确定阶段索引
-    if (strstr(stage_title, "小学")) {
-        current_stage = 0;
-    } else if (strstr(stage_title, "初中")) {
-        current_stage = 1;
-    } else if (strstr(stage_title, "高中")) {
-        current_stage = 2;
+    if (list_view != NULL) {
+        lv_obj_delete(list_view);
+        list_view = NULL;
     }
 
-    ui_poetry_view_render_list(stage_title, current_stage);
+    detail_view = lv_obj_create(poetry_page);
+    lv_obj_set_size(detail_view, UI_SCREEN_WIDTH, UI_SCREEN_HEIGHT);
+    lv_obj_set_style_bg_color(detail_view, lv_color_hex(0xF8F8F8), 0);
+    lv_obj_set_style_border_side(detail_view, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_flex_flow(detail_view, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(detail_view, 0, 0);
+
+    poem_t *poem = ui_poetry_get_poem(idx);
+    if (!poem) return;
+
+    // 系统标题栏
+    ui_titlebar_create(detail_view, poem->title, back_btn_event_cb, NULL, NULL, NULL, NULL, NULL, NULL, false);
+
+    // 内容区域
+    lv_obj_t *content_area = lv_obj_create(detail_view);
+    lv_obj_set_size(content_area, UI_SCREEN_WIDTH, ui_get_content_height());
+    lv_obj_set_pos(content_area, 0, ui_get_content_y());
+    lv_obj_set_style_bg_color(content_area, lv_color_hex(0xF8F8F8), 0);
+    lv_obj_set_style_border_side(content_area, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_flex_flow(content_area, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(content_area, 15, 0);
+    lv_obj_set_style_pad_gap(content_area, 12, 0);
+
+    // 作者
+    lv_obj_t *author_label = lv_label_create(content_area);
+    lv_label_set_text(author_label, poem->author);
+    lv_obj_set_style_text_font(author_label, &font, 0);
+    lv_obj_set_style_text_color(author_label, lv_color_hex(0x999999), 0);
+
+    // 诗句内容卡片
+    lv_obj_t *content_card = lv_obj_create(content_area);
+    lv_obj_set_size(content_card, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(content_card, 1);
+    lv_obj_set_style_bg_color(content_card, lv_color_white(), 0);
+    lv_obj_set_style_border_color(content_card, lv_color_hex(0xE8E8E8), 0);
+    lv_obj_set_style_border_width(content_card, 1, 0);
+    lv_obj_set_style_radius(content_card, 12, 0);
+    lv_obj_set_style_pad_all(content_card, 15, 0);
+    lv_obj_set_style_shadow_width(content_card, 2, 0);
+    lv_obj_set_style_shadow_color(content_card, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_shadow_opa(content_card, 10, 0);
+
+    lv_obj_t *content_label = lv_label_create(content_card);
+    lv_label_set_text(content_label, poem->content);
+    lv_obj_set_style_text_font(content_label, &font, 0);
+    lv_obj_set_style_text_color(content_label, lv_color_hex(0x333333), 0);
+    lv_label_set_long_mode(content_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(content_label, LV_SIZE_CONTENT);
 }
 
-void ui_poetry_route_to_detail(void) {
-    clean_current_page();
-    is_playing = false;
+// 回调：返回到桌面
+static void back_to_home_event_cb(lv_event_t *e) {
+    ui_poetry_hide();
+}
 
-    // 从数据库获取当前诗词
-    poem_t *poem = ui_poetry_get_stage_poem(current_stage, current_poem_index);
-    if (poem == NULL) {
-        // 降级到第一首诗
-        poem = ui_poetry_get_stage_poem(current_stage, 0);
+// 显示列表视图
+static void show_list_view(void) {
+    if (list_view != NULL) {
+        lv_obj_delete(list_view);
+    }
+    if (detail_view != NULL) {
+        lv_obj_delete(detail_view);
+        detail_view = NULL;
     }
 
-    if (poem) {
-        ui_poetry_view_render_detail(poem->title, poem->author, poem->content, poem->notes);
+    list_view = lv_obj_create(poetry_page);
+    lv_obj_set_size(list_view, UI_SCREEN_WIDTH, UI_SCREEN_HEIGHT);
+    lv_obj_set_style_bg_color(list_view, lv_color_hex(0xF8F8F8), 0);
+    lv_obj_set_style_border_side(list_view, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_flex_flow(list_view, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(list_view, 0, 0);
+
+    // 系统标题栏
+    ui_titlebar_create(list_view, "唐诗三百首", back_to_home_event_cb, NULL, NULL, NULL, NULL, NULL, NULL, false);
+
+    // 列表容器
+    lv_obj_t *list = lv_list_create(list_view);
+    lv_obj_set_size(list, UI_SCREEN_WIDTH, ui_get_content_height());
+    lv_obj_set_pos(list, 0, ui_get_content_y());
+    lv_obj_set_style_bg_color(list, lv_color_hex(0xF8F8F8), 0);
+    lv_obj_set_style_border_side(list, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_style_pad_all(list, 10, 0);
+    lv_obj_set_style_pad_gap(list, 8, 0);
+
+    uint16_t count = ui_poetry_get_count();
+    for (uint16_t i = 0; i < count; i++) {
+        poem_t *poem = ui_poetry_get_poem(i);
+        if (!poem) continue;
+
+        lv_obj_t *item = lv_list_add_button(list, NULL, poem->title);
+        lv_obj_set_user_data(item, (void *)(uintptr_t)i);
+        lv_obj_add_event_cb(item, list_item_event_cb, LV_EVENT_CLICKED, NULL);
+
+        // iOS 风格：圆角、阴影、白色背景
+        lv_obj_set_style_bg_color(item, lv_color_white(), 0);
+        lv_obj_set_style_radius(item, 10, 0);
+        lv_obj_set_style_shadow_width(item, 1, 0);
+        lv_obj_set_style_shadow_color(item, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_shadow_opa(item, 5, 0);
+        lv_obj_set_style_border_side(item, LV_BORDER_SIDE_NONE, 0);
+        lv_obj_set_style_pad_all(item, 12, 0);
+
+        // 文字颜色和大小
+        lv_obj_t *label = lv_obj_get_child(item, 0);
+        if (label) {
+            lv_obj_set_style_text_color(label, lv_color_hex(0x333333), 0);
+            lv_obj_set_style_text_font(label, &font, 0);
+        }
     }
 }
-
-// ==========================================
-// 业务逻辑控制
-// ==========================================
-
-void ui_poetry_toggle_play(lv_obj_t *btn_label) {
-    is_playing = !is_playing;
-    if (is_playing) {
-        lv_label_set_text(btn_label, " " LV_SYMBOL_PAUSE " ");
-        // TODO: 在这里调用你的音频底层播放接口，如: audio_play("jingyesi.mp3");
-    } else {
-        lv_label_set_text(btn_label, " " LV_SYMBOL_PLAY " ");
-        // TODO: 在这里调用你的音频底层暂停接口，如: audio_pause();
-    }
-}
-
-void ui_poetry_toggle_notes(lv_obj_t *notes_panel) {
-    if (lv_obj_has_flag(notes_panel, LV_OBJ_FLAG_HIDDEN)) {
-        lv_obj_remove_flag(notes_panel, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(notes_panel, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-void ui_poetry_set_current_poem_index(uint16_t index) {
-    current_poem_index = index;
-}
-
-// ==========================================
-// 外部框架生命周期接口
-// ==========================================
 
 void ui_poetry_show(void) {
     ui_poetry_hide();
-    ui_poetry_data_init(); // 初始化诗词数据
-    ui_dock_hide(); // 隐藏Dock栏
-    app_screen = lv_obj_create(NULL);
-    ui_poetry_route_to_home();
-    lv_screen_load(app_screen);
+    ui_poetry_data_init();
+
+    poetry_page = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(poetry_page, UI_SCREEN_WIDTH, UI_SCREEN_HEIGHT);
+    lv_obj_set_style_bg_color(poetry_page, lv_color_hex(0xF5F5F7), 0);
+    lv_obj_set_style_border_side(poetry_page, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_style_pad_all(poetry_page, 0, 0);
+
+    show_list_view();
 }
 
 void ui_poetry_hide(void) {
-    if (app_screen != NULL) {
-        lv_obj_delete(app_screen);
-        app_screen = NULL;
-        current_page = NULL;
-        is_playing = false;
+    if (lv_obj_is_valid(poetry_page)) {
+        lv_obj_delete(poetry_page);
+        poetry_page = NULL;
     }
-    ui_dock_show(); // 显示Dock栏
+    list_view = NULL;
+    detail_view = NULL;
 }

@@ -172,6 +172,19 @@ static void refresh_list(void) {
     lv_obj_set_style_pad_right(content_area, 0, 0);
     lv_obj_set_style_pad_top(content_area, 10, 0);
 
+    if (reminder_count == 0)
+    {
+        // 显示"暂无提醒"提示
+        lv_obj_t *empty_label = lv_label_create(content_area);
+        lv_label_set_text(empty_label, "暂无提醒");
+        lv_obj_set_style_text_font(empty_label, &font, 0);
+        lv_obj_set_style_text_color(empty_label, COLOR_TEXT_SECOND, 0);
+        lv_obj_set_width(empty_label, lv_pct(100));
+        lv_obj_set_style_text_align(empty_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(empty_label, LV_ALIGN_CENTER, 0, 0);
+        return;
+    }
+
     int sorted_indices[MAX_REMINDERS];
     for(int i = 0; i < reminder_count; i++) {
         sorted_indices[i] = i;
@@ -251,9 +264,6 @@ void ui_reminder_show(void) {
     lv_obj_set_style_border_width(content_area, 0, 0);
     lv_obj_set_scrollbar_mode(content_area, LV_SCROLLBAR_MODE_OFF);
 
-    if(reminder_count == 0) {
-        init_sample_data();
-    }
     refresh_list();
 
     lv_obj_fade_in(reminder_page, 180, 0);

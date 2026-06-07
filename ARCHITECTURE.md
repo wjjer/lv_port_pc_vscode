@@ -40,8 +40,7 @@ project_root/
            │     ├─ui_poetry.c/.h       #   路由+生命周期（show/hide, route_to_*）
            │     └─ui_poetry_view.c/.h  #   纯渲染（home/list/detail）
            ├─games/                     # 游戏类应用（独立 Screen / 高刷新）
-           │  ├─airplane/  # 飞机大战：flygame.c/.h + 敌机/Boss/爆炸 等美术 .c
-           │  └─pvz/       # 植物大战僵尸：pvz.c/.h + 豌豆/坚果/阳光/僵尸/地图 等美术 .c
+           │  └─airplane/  # 飞机大战：flygame.c/.h + 敌机/Boss/爆炸 等美术 .c
            └─system/                    # 系统类应用
                ├─calculator/ ui_calculator.c/.h
                ├─calendar/   ui_calendar.c/.h     # 基于 lv_calendar，启用农历

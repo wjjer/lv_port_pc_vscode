@@ -10,7 +10,6 @@
 #include "pages/system/reminder/ui_reminder.h"
 #include "pages/system/calculator/ui_calculator.h"
 #include "pages/games/airplane/flygame.h"
-#include "pages/games/pvz/pvz.h"
 #include "pages/app/poetry/ui_poetry.h"
 #include "pages/app/pomodoro/ui_pomodoro.h"
 // 样式宏定义
@@ -34,6 +33,9 @@ LV_IMAGE_DECLARE(icon_calendar);
 LV_IMAGE_DECLARE(icon_weather);
 LV_IMAGE_DECLARE(icon_reminder);
 LV_IMAGE_DECLARE(icon_calculator);
+LV_IMAGE_DECLARE(icon_plane);
+LV_IMAGE_DECLARE(icon_poetry);
+LV_IMAGE_DECLARE(icon_pomodoro);
 
 // Dock 图标数据
 const char * dock_icon_names[] = {
@@ -49,7 +51,7 @@ const void * dock_icons[] = {
 
 // 模拟图标数据
 const char * icon_names[] = {
-   "设置", "时钟", "豆包", "日历", "天气", "提醒", "计算器", "诗词园地", "飞机游戏", "pvz游戏", "番茄时钟"
+   "设置", "时钟", "豆包", "日历", "天气", "提醒", "计算器", "诗词园地", "飞机游戏", "番茄时钟"
 };
 
 // 这里的数组存放的是图片的地址
@@ -61,10 +63,9 @@ const void * ios_icons[] = {
     &icon_weather,
     &icon_reminder,
     &icon_calculator,
-    NULL,  // 诗词园地：图标暂不显示
-    NULL,  // 飞机游戏：图标暂不显示
-    NULL,  // pvz游戏：图标暂不显示
-    NULL   // 番茄时钟：图标暂不显示
+    &icon_poetry,      // 诗词园地
+    &icon_plane,       // 飞机游戏
+    &icon_pomodoro     // 番茄时钟
 };
 
 // 页面指示器圆点
@@ -117,8 +118,6 @@ static void icon_event_cb(lv_event_t * e) {
             ui_calculator_show();
         } else if(strcmp(name, "飞机游戏") == 0) {
             flygame_toggle();
-        } else if(strcmp(name, "pvz游戏") == 0) {
-            pvz_toggle();
         } else if(strcmp(name, "诗词园地") == 0) {
             ui_poetry_show();
         } else if(strcmp(name, "番茄时钟") == 0) {
