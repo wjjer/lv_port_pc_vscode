@@ -1,5 +1,7 @@
 #include "ui_poetry.h"
 #include "ui_poetry_view.h"
+#include "ui_poetry_data.h"
+#include <string.h>
 
 // 实体定义：全局核心容器
 lv_obj_t *app_screen = NULL;
@@ -11,6 +13,8 @@ static bool style_initialized = false;
 
 // 内部业务状态
 static bool is_playing = false;
+static uint8_t current_stage = 0;
+static uint16_t current_poem_index = 0;
 
 // 初始化应用特有样式
 static void ui_poetry_init_styles(void) {
@@ -45,20 +49,33 @@ void ui_poetry_route_to_home(void) {
 
 void ui_poetry_route_to_list(const char *stage_title) {
     clean_current_page();
-    ui_poetry_view_render_list(stage_title);
+
+    // 确定阶段索引
+    if (strstr(stage_title, "小学")) {
+        current_stage = 0;
+    } else if (strstr(stage_title, "初中")) {
+        current_stage = 1;
+    } else if (strstr(stage_title, "高中")) {
+        current_stage = 2;
+    }
+
+    ui_poetry_view_render_list(stage_title, current_stage);
 }
 
 void ui_poetry_route_to_detail(void) {
     clean_current_page();
-    is_playing = false; // 进入详情页重置播放状态
+    is_playing = false;
 
-    // 实际项目中，这里的数据可以从 Model（数据库/数组）中动态读取
-    const char *title = "静夜思";
-    const char *author = "【唐】李白";
-    const char *content = "床前明月光，\n疑是地上霜。\n举头望明月，\n低头思故乡。";
-    const char *notes = "【注释】\n1. 静夜思：静静的深夜产生的思念之情。\n2. 床前：一说指井栏，一说指窗前。\n\n【赏析】\n这首诗写的是游子孤身在外的深夜思乡之情，语言质朴，流传千古。";
+    // 从数据库获取当前诗词
+    poem_t *poem = ui_poetry_get_stage_poem(current_stage, current_poem_index);
+    if (poem == NULL) {
+        // 降级到第一首诗
+        poem = ui_poetry_get_stage_poem(current_stage, 0);
+    }
 
-    ui_poetry_view_render_detail(title, author, content, notes);
+    if (poem) {
+        ui_poetry_view_render_detail(poem->title, poem->author, poem->content, poem->notes);
+    }
 }
 
 // ==========================================
@@ -84,13 +101,18 @@ void ui_poetry_toggle_notes(lv_obj_t *notes_panel) {
     }
 }
 
+void ui_poetry_set_current_poem_index(uint16_t index) {
+    current_poem_index = index;
+}
+
 // ==========================================
 // 外部框架生命周期接口
 // ==========================================
 
 void ui_poetry_show(void) {
-    ui_poetry_hide(); // 安全清理
-    app_screen = lv_obj_create(NULL); // 创建独立专用的 Screen
+    ui_poetry_hide();
+    ui_poetry_data_init(); // 初始化诗词数据
+    app_screen = lv_obj_create(NULL);
     ui_poetry_route_to_home();
     lv_screen_load(app_screen);
 }

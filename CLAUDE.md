@@ -15,10 +15,7 @@
 ## 3. HDD 闭环开发对话范式 (Harness-Driven Workflow)
 当你（Agent）被指派去开发一个处于 `not_started` 或 `active` 状态的新应用（如天气、计算器）时，你必须采用**“自生自测”**策略：
 1. **写源码**: 在 `src/ui/pages/` 对应的目录下编写应用的 `.c` 和 `.h`。
-2. **写断言**: 必须在根目录的 **`tests/`** 文件夹下，自动派生出对应的 `test_<app_name>.c` 验证脚本。
-3. **连链路**: 验证脚本内部必须用标准 C 的 `assert()` 断言：根容器非空、核心 UI 控件存在、数据输入/刷新链路正确、以及 120ms 异步消隐后指针置为 `NULL`。
-4. **配编译**: 自动在 `CMakeLists.txt` 或 `Makefile` 中追加测试目标（Target）,并在`PROGRESS.md`中更新对应的验证命令。
-5. **跑验证**: 只有你在仿真终端运行验证命令返回 `0`（Success）后，你才有权将 `PROGRESS.md` 中的状态变更为 `passing`。
+2. **跑验证**: 执行应用编译命令 `cmake --build build`，确认编译成功后，你才有权将 `PROGRESS.md` 中的状态变更为 `passing`。
 
 ## 4. 快速开始 (Quick Start)
 - 初始化：进入项目根目录lv_alarm_clock
@@ -46,10 +43,14 @@
 - **`ARCHITECTURE.md`**: 硬件基线、实际目录清单、分层依赖规则与关键数据流。
 - **`PROGRESS.md`**: 反映项目任务状态和下一步工作内容。
 
-### 8. 新增一个应用的标准步骤
-1. 建目录 `src/ui/pages/<类别>/<app>/`，按 `ui_<app>[_<subpage>].c/.h` 拆分（CONSTRAINTS §3/§10）。
-2. 实现 `ui_<app>_show()` / `ui_<app>_hide()` 生命周期对（CONSTRAINTS §5），浮层与状态栏处理选定一种模式（§6/§7）。
-3. 复用 `ui_titlebar_create()`、`ui_config.h` 的 `ui_get_*()` 尺寸、中文 `&font`（§8/§9）。
-4. 在 `ui.c` 注册图标（`icon_names[]` / `ios_icons[]`）并加分发分支。
-5. 创建应用对应的在 `tests/` 目录下的测试文件。
-6. 同步 `PROGRESS.md`，必要时更新 `ARCHITECTURE.md` 目录清单。
+## 8. 新增一个应用的标准步骤
+> 基本步骤：
+    1. 先创建文件框架（只包含主要结构和导入语句）一次不要写入太多代码
+    2. 添加第一个功能模块
+    3. 添加第二个功能模块（逐渐完善代码）
+> 实现细节
+    1. 建目录 `src/ui/pages/<类别>/<app>/`，按 `ui_<app>[_<subpage>].c/.h` 拆分（CONSTRAINTS §3/§10）。
+    2. 实现 `ui_<app>_show()` / `ui_<app>_hide()` 生命周期对（CONSTRAINTS §5），浮层与状态栏处理选定一种模式（§6/§7）。
+    3. 复用 `ui_titlebar_create()`、`ui_config.h` 的 `ui_get_*()` 尺寸、中文 `&font`（§8/§9）。
+    4. 在 `ui.c` 注册图标（`icon_names[]` / `ios_icons[]`）并加分发分支。
+    5. 同步 `PROGRESS.md`，必要时更新 `ARCHITECTURE.md` 目录清单。

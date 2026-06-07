@@ -2,6 +2,7 @@
 #define UI_POETRY_H
 
 #include "lvgl.h"
+#include <stdint.h>
 
 // 导出全局核心容器（供 View 层构建页面时作为父物体）
 extern lv_obj_t *app_screen;
@@ -22,5 +23,6 @@ void ui_poetry_route_to_detail(void);
 // 业务逻辑行为
 void ui_poetry_toggle_play(lv_obj_t *btn_label);
 void ui_poetry_toggle_notes(lv_obj_t *notes_panel);
+void ui_poetry_set_current_poem_index(uint16_t index);
 
 #endif // UI_POETRY_H

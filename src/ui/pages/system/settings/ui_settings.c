@@ -1,4 +1,5 @@
 #include "ui_settings.h"
+#include "ui_settings_wifi.h"
 #include "../../../components/ui_titlebar.h"
 #include "../../../ui.h"
 
@@ -63,6 +64,24 @@ static lv_obj_t * add_menu_item(lv_obj_t * parent, const char * icon, const char
 
     return item;
 }
+
+/**
+ * @brief 创建可点击的菜单项（支持回调）
+ */
+static lv_obj_t * add_menu_item_with_callback(lv_obj_t * parent, const char * icon, const char * name, const char * value, lv_event_cb_t callback) {
+    lv_obj_t * item = add_menu_item(parent, icon, name, value, false);
+
+    // 设置为可点击
+    lv_obj_add_flag(item, LV_OBJ_FLAG_CLICKABLE);
+
+    // 添加点击事件
+    if(callback != NULL) {
+        lv_obj_add_event_cb(item, callback, LV_EVENT_CLICKED, NULL);
+    }
+
+    return item;
+}
+
 
 
 static void roller_event_handler(lv_event_t * e) {
@@ -143,6 +162,16 @@ static lv_obj_t * add_menu_roller_item(lv_obj_t * parent, const char * icon, con
     return item;
 }
 
+/**
+ * @brief WiFi菜单项点击回调
+ */
+static void wifi_item_clicked(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_CLICKED) {
+        ui_settings_wifi_show();
+    }
+}
+
 static void add_menu_section_title(lv_obj_t * parent, const char * text) {
     lv_obj_t * title = lv_label_create(parent);
     lv_label_set_text(title, text);
@@ -194,7 +223,7 @@ void ui_settings_init(void) {
 
     // --- 分组 2: 网络 ---
     add_menu_section_title(main_list, "网络与无线连接");
-    lv_obj_t * item2_1 = add_menu_item(main_list, LV_SYMBOL_WIFI, "无线网络", "微赞办公室", false);
+    lv_obj_t * item2_1 = add_menu_item_with_callback(main_list, LV_SYMBOL_WIFI, "无线网络", "微赞办公室", wifi_item_clicked);
     lv_obj_set_style_radius(item2_1, 8, 0);
 
     lv_obj_t * item2_2 = add_menu_item(main_list, LV_SYMBOL_BLUETOOTH, "蓝牙", NULL, true);

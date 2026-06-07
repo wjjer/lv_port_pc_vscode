@@ -1,5 +1,7 @@
 #include "ui_poetry_view.h"
 #include "ui_poetry.h"
+#include "ui_poetry_data.h"
+#include <stdio.h>
 
 // ==========================================
 // 内部事件包装器：转换 LVGL 事件为业务路由/行为
@@ -16,7 +18,10 @@ static void home_stage_btn_cb(lv_event_t *e) {
 
 static void list_item_btn_cb(lv_event_t *e) {
     if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-        ui_poetry_route_to_detail(); // 触发业务路由
+        lv_obj_t *btn = lv_event_get_target(e);
+        uint16_t index = (uintptr_t)lv_event_get_user_data(e);
+        ui_poetry_set_current_poem_index(index); // 记录选中的诗词索引
+        ui_poetry_route_to_detail();
     }
 }
 
@@ -90,7 +95,7 @@ void ui_poetry_view_render_home(void) {
     }
 }
 
-void ui_poetry_view_render_list(const char *stage_title) {
+void ui_poetry_view_render_list(const char *stage_title, uint8_t stage) {
     current_page = lv_obj_create(app_screen);
     lv_obj_set_size(current_page, 320, 240);
     lv_obj_set_style_bg_color(current_page, lv_color_hex(0xFDFBF7), 0);
@@ -127,8 +132,14 @@ void ui_poetry_view_render_list(const char *stage_title) {
     lv_obj_set_style_pad_all(list, 10, 0);
     lv_obj_set_style_pad_row(list, 8, 0);
 
-    const char *mock_poems[] = {"1. 静夜思 (李白)", "2. 春晓 (孟浩然)", "3. 赠汪伦 (李白)", "4. 登鹳雀楼 (王之涣)", "5. 咏鹅 (骆宾王)"};
-    for (int i = 0; i < 5; i++) {
+    // 获取当前阶段的诗词数量
+    uint16_t poem_count = ui_poetry_get_stage_count(stage);
+
+    // 动态显示实际诗词
+    for (uint16_t i = 0; i < poem_count && i < 5; i++) {
+        poem_t *poem = ui_poetry_get_stage_poem(stage, i);
+        if (poem == NULL) break;
+
         lv_obj_t *item = lv_button_create(list);
         lv_obj_set_width(item, lv_pct(100));
         lv_obj_set_height(item, 40);
@@ -138,11 +149,15 @@ void ui_poetry_view_render_list(const char *stage_title) {
         lv_obj_set_style_border_width(item, 1, 0);
         lv_obj_set_style_radius(item, 6, 0);
         lv_obj_set_style_shadow_width(item, 0, 0);
-        lv_obj_add_event_cb(item, list_item_btn_cb, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_event_cb(item, list_item_btn_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i);
 
-        lv_obj_t *item_text = lv_label_create(item);
-        lv_label_set_text(item_text, mock_poems[i]);
-        lv_obj_align(item_text, LV_ALIGN_LEFT_MID, 10, 0);
+        // 格式化诗词项显示：序号. 标题 (作者)
+        char item_text[128];
+        snprintf(item_text, sizeof(item_text), "%d. %s (%s)", i + 1, poem->title, poem->author);
+
+        lv_obj_t *item_label = lv_label_create(item);
+        lv_label_set_text(item_label, item_text);
+        lv_obj_align(item_label, LV_ALIGN_LEFT_MID, 10, 0);
     }
 }
 
