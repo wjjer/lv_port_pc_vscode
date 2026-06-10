@@ -114,6 +114,8 @@ static void parse_json_file(const char *filepath) {
             if (extract_json_string(obj_str, "title", g_poems[poem_count].title, MAX_POEM_TITLE_LEN) &&
                 extract_json_string(obj_str, "author", g_poems[poem_count].author, MAX_POEM_AUTHOR_LEN) &&
                 extract_json_string(obj_str, "content", g_poems[poem_count].content, MAX_POEM_CONTENT_LEN)) {
+                // subtitle 为可选字段
+                extract_json_string(obj_str, "subtitle", g_poems[poem_count].subtitle, MAX_POEM_SUBTITLE_LEN);
                 poem_count++;
             }
 

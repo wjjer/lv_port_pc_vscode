@@ -6,11 +6,13 @@
 #define MAX_POEMS 300
 #define MAX_POEM_TITLE_LEN 64
 #define MAX_POEM_AUTHOR_LEN 32
+#define MAX_POEM_SUBTITLE_LEN 32
 #define MAX_POEM_CONTENT_LEN 1024
 
 typedef struct {
     char title[MAX_POEM_TITLE_LEN];
     char author[MAX_POEM_AUTHOR_LEN];
+    char subtitle[MAX_POEM_SUBTITLE_LEN];
     char content[MAX_POEM_CONTENT_LEN];
 } poem_t;
 

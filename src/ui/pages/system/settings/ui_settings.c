@@ -1,7 +1,9 @@
 #include "ui_settings.h"
 #include "ui_settings_wifi.h"
+#include "../../../components/ui_dialog.h"
 #include "../../../components/ui_titlebar.h"
 #include "../../../ui.h"
+#include <string.h>
 
 
 #define COLOR_SETTING_BG     lv_color_hex(0xF2F2F7) // 标准系统浅灰底
@@ -172,6 +174,35 @@ static void wifi_item_clicked(lv_event_t * e) {
     }
 }
 
+/**
+ * @brief 用户名修改完成回调
+ */
+static void username_done_cb(void * user_data, const char * result_text) {
+    lv_obj_t * val_label = (lv_obj_t *)user_data;
+    if(val_label == NULL || result_text == NULL) return;
+    if(lv_strcmp(result_text, "cancel") == 0) return;
+    if(result_text[0] == '\0') return;
+    lv_label_set_text(val_label, result_text);
+}
+
+/**
+ * @brief 当前用户条目点击回调：弹出输入框修改用户名
+ */
+static void username_item_clicked(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_CLICKED) {
+        lv_obj_t * item = lv_event_get_target(e);
+        // value_label 是 item 的第3个子对象（icon_label=0, name_label=1, val_label=2）
+        lv_obj_t * val_label = lv_obj_get_child(item, 2);
+        if(val_label == NULL) return;
+        const char * current = lv_label_get_text(val_label);
+
+        // 使用全局回调：需要单独处理 "cancel" 与 "ok"
+        ui_dialog_text_input_show(NULL, "修改用户名", "请输入新用户名", current, "确定", "取消",
+            username_done_cb, val_label);
+    }
+}
+
 static void add_menu_section_title(lv_obj_t * parent, const char * text) {
     lv_obj_t * title = lv_label_create(parent);
     lv_label_set_text(title, text);
@@ -218,7 +249,7 @@ void ui_settings_init(void) {
 
     // --- 分组 1: 账户 ---
     add_menu_section_title(main_list, "账户管理");
-    lv_obj_t * item1 = add_menu_item(main_list, LV_SYMBOL_IMAGE, "当前用户", "123456 >", false);
+    lv_obj_t * item1 = add_menu_item_with_callback(main_list, LV_SYMBOL_IMAGE, "当前用户", "123456 >", username_item_clicked);
     lv_obj_set_style_radius(item1, 8, 0);
 
     // --- 分组 2: 网络 ---
@@ -236,7 +267,7 @@ void ui_settings_init(void) {
         lv_obj_set_style_bg_opa(lv_obj_get_child(item2_3, 3), LV_OPA_TRANSP, 0);
     }
 
-    // --- 分组 3: 闹钟设置 ---
+    // --- 分组 3: 时钟设置 ---
     add_menu_section_title(main_list, "时钟设置");
 // 参数说明：(父对象, 图标, 标题, 滚轮选项, 默认选中索引)
     lv_obj_t * item3_1 = add_menu_roller_item(main_list, LV_SYMBOL_SETTINGS, "贪睡时间", "5分钟\n10分钟\n15分钟\n30分钟", 1); // 默认选 10分钟
@@ -248,10 +279,23 @@ void ui_settings_init(void) {
     lv_obj_t * item3_3 = add_menu_roller_item(main_list, LV_SYMBOL_SETTINGS, "重复次数", "1次\n2次\n3次\n5次", 2); // 默认选 3次
     lv_obj_set_style_radius(item3_3, 8, 0);
 
+    // --- 分组 4: 系统设置 ---
+    add_menu_section_title(main_list, "系统设置");
+    lv_obj_t * item4_1 = add_menu_roller_item(main_list, LV_SYMBOL_DOWNLOAD, "自动锁屏时间", "5秒\n15秒\n1分钟", 1); // 默认 15秒
+    lv_obj_set_style_radius(item4_1, 8, 0);
+
+    lv_obj_t * item4_2 = add_menu_roller_item(main_list, LV_SYMBOL_DOWNLOAD, "自动关机时间", "1小时\n2小时\n不关机", 2); // 默认 不关机
+    lv_obj_set_style_radius(item4_2, 8, 0);
+
     // --- 分组 5: 系统 ---
     add_menu_section_title(main_list, "系统信息");
-    lv_obj_t * item4 = add_menu_item(main_list, LV_SYMBOL_SETTINGS, "系统版本", "v1.0.0", false);
-    lv_obj_set_style_radius(item4, 8, 0);
+    lv_obj_t * item5 = add_menu_item(main_list, LV_SYMBOL_SETTINGS, "系统版本", "v1.0.0", false);
+    lv_obj_set_style_radius(item5, 8, 0);
+
+    // 隐藏本组最后一项的下划线
+    if(lv_obj_get_child_cnt(item5) >= 4) {
+        lv_obj_set_style_bg_opa(lv_obj_get_child(item5, 3), LV_OPA_TRANSP, 0);
+    }
 }
 
 /**
