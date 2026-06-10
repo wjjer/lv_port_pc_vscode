@@ -558,11 +558,15 @@ void ui_dock_show(void) {
     }
 }
 
+// 全局 Tileview 引用，供设置页修改桌面背景色
+lv_obj_t * _desktop_tv = NULL;
+
 void ui_init(void) {
 
 
     // 1. 创建 Tileview (三色对角线渐变，增加中点让顶部更明亮开阔)
     lv_obj_t * tv = lv_tileview_create(lv_screen_active());
+    _desktop_tv = tv;
 
     // static lv_grad_dsc_t bg_grad;
     // lv_grad_linear_init(&bg_grad, 0, 0, UI_SCREEN_WIDTH, UI_SCREEN_HEIGHT, LV_GRAD_EXTEND_PAD);
@@ -611,4 +615,13 @@ void ui_init(void) {
 
     // 设置状态栏为深色（适配浅色背景）
     update_status_bar_color(lv_color_hex(0x5AC8FA));
+}
+
+/**
+ * @brief 设置桌面背景色（由设置页调用）
+ */
+void ui_set_desktop_bg_color(lv_color_t color) {
+    if (_desktop_tv != NULL) {
+        lv_obj_set_style_bg_color(_desktop_tv, color, 0);
+    }
 }

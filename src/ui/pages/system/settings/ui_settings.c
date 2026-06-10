@@ -1,6 +1,7 @@
 #include "ui_settings.h"
 #include "ui_settings_wifi.h"
 #include "../../../components/ui_dialog.h"
+#include "../../../components/ui_color_picker.h"
 #include "../../../components/ui_titlebar.h"
 #include "../../../ui.h"
 #include <string.h>
@@ -203,6 +204,24 @@ static void username_item_clicked(lv_event_t * e) {
     }
 }
 
+/**
+ * @brief 桌面背景色选择回调
+ */
+static void desktop_bg_color_changed(lv_color_t chosen_color, void * user_data) {
+    (void)user_data;
+    ui_set_desktop_bg_color(chosen_color);
+}
+
+/**
+ * @brief 桌面背景色条目点击回调
+ */
+static void desktop_bg_item_clicked(lv_event_t * e) {
+    (void)e;
+    // 获取当前 tileview 的背景色作为初始值
+    // 默认初始值为蓝色 #3B82F6
+    ui_color_picker_show(lv_color_hex(0x3B82F6), desktop_bg_color_changed, NULL);
+}
+
 static void add_menu_section_title(lv_obj_t * parent, const char * text) {
     lv_obj_t * title = lv_label_create(parent);
     lv_label_set_text(title, text);
@@ -286,6 +305,14 @@ void ui_settings_init(void) {
 
     lv_obj_t * item4_2 = add_menu_roller_item(main_list, LV_SYMBOL_DOWNLOAD, "自动关机时间", "1小时\n2小时\n不关机", 2); // 默认 不关机
     lv_obj_set_style_radius(item4_2, 8, 0);
+
+    // 桌面背景色条目
+    lv_obj_t * item4_3 = add_menu_item_with_callback(main_list, LV_SYMBOL_SETTINGS, "桌面背景色", "", desktop_bg_item_clicked);
+    lv_obj_set_style_radius(item4_3, 8, 0);
+    // 隐藏本组最后一项的下划线
+    if(lv_obj_get_child_cnt(item4_3) >= 4) {
+        lv_obj_set_style_bg_opa(lv_obj_get_child(item4_3, 3), LV_OPA_TRANSP, 0);
+    }
 
     // --- 分组 5: 系统 ---
     add_menu_section_title(main_list, "系统信息");

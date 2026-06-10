@@ -23,6 +23,9 @@ lv_obj_t * create_icon(lv_obj_t * parent, const char * name, const void * src_im
 void ui_dock_hide(void);
 void ui_dock_show(void);
 
+// 桌面背景色设置
+void ui_set_desktop_bg_color(lv_color_t color);
+
 #ifdef __cplusplus
 }
 #endif

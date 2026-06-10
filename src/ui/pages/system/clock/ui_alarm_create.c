@@ -1056,8 +1056,6 @@ static void textarea_focus_cb(lv_event_t *e)
     lv_obj_t *ta = lv_event_get_target(e);
     lv_obj_t *kb = lv_event_get_user_data(e);
 
-    printf("textarea_focus_cb: code=%d\n", code);  // 调试打印
-
     if (code == LV_EVENT_FOCUSED) {
         /* 获得焦点：显示键盘并关联 */
         printf("FOCUSED: showing keyboard\n");
