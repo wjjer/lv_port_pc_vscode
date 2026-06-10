@@ -9,6 +9,7 @@
 #include "pages/system/weather/ui_weather.h"
 #include "pages/system/reminder/ui_reminder.h"
 #include "pages/system/calculator/ui_calculator.h"
+#include "pages/system/lockscreen/ui_lockscreen.h"
 #include "pages/games/airplane/flygame.h"
 #include "pages/app/poetry/ui_poetry.h"
 #include "pages/app/pomodoro/ui_pomodoro.h"

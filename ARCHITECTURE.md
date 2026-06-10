@@ -47,6 +47,7 @@ project_root/
                ├─clock/      ui_clock.c/.h        # 时钟仪表盘（翻页时钟）
                │             ui_alarm_create.c/.h #   新增/编辑闹钟 + 铃声页 + 拼音输入
                ├─reminder/   ui_reminder.c/.h
+               ├─lockscreen/ ui_lockscreen.c/.h  # iOS风格锁屏：黑色全屏+时间+上滑解锁
                ├─settings/   ui_settings.c/.h
                │             lvgl_9_5_wi_fi.cpp   #   WiFi 子页（C++，注意 extern "C" 边界）
                └─weather/    ui_weather.c/.h      # 含定位选择对话框

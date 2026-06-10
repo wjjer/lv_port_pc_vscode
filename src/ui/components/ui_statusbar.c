@@ -4,6 +4,7 @@
 // 前向声明
 extern void ui_settings_wifi_show(void);
 extern void ui_settings_show(void);
+extern void ui_lockscreen_show(void);
 
 lv_obj_t * bar_time_label = NULL;
 lv_obj_t * status_bar = NULL;
@@ -54,11 +55,28 @@ static void wifi_btn_long_press_cb(lv_event_t * e) {
     }
 }
 
+// 快捷面板第三个按钮：锁屏（不切换颜色）
+static void lockscreen_btn_click_cb(lv_event_t * e) {
+    (void)e;
+    // 收起快捷面板
+    if (panel_visible) {
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
+        lv_anim_set_var(&a, quick_panel);
+        lv_anim_set_values(&a, 0, -180);
+        lv_anim_set_duration(&a, 200);
+        lv_anim_start(&a);
+        panel_visible = false;
+    }
+    ui_lockscreen_show();
+}
+
 static void toggle_btn_cb(lv_event_t * e) {
     lv_obj_t * btn = lv_event_get_target(e);
     int id = (int)(intptr_t)lv_obj_get_user_data(btn);
-    // 跳过第4个设置按钮（不切换颜色）
-    if (id == 3) return;
+    // 跳过第3个锁屏按钮和第4个设置按钮（不切换颜色）
+    if (id == 2 || id == 3) return;
     // WiFi(0) 和 4G(1) 互斥
     if (id == 0 || id == 1) {
         int other = (id == 0) ? 1 : 0;
@@ -161,6 +179,13 @@ static void create_quick_panel(void) {
         if (i == 0) {
             wifi_btn = btn;
             lv_obj_add_event_cb(btn, wifi_btn_long_press_cb, LV_EVENT_LONG_PRESSED, NULL);
+        }
+
+        // 第三个按钮（索引2）改为锁屏：点击显示锁屏UI + 收起面板，不切换颜色
+        if (i == 2) {
+            lv_obj_add_event_cb(btn, lockscreen_btn_click_cb, LV_EVENT_CLICKED, NULL);
+            // 恢复原始颜色，不参与切换
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x3A3A3C), 0);
         }
 
         // 第4个设置按钮：跳转到系统设置页面（收起面板）
